@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wheel of Forfeits</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>Wheel of Forfeits</h1>
+    <div class="header-actions">
+      <button id="toggle-menu" class="primary">Manage Forfeits</button>
+      <button id="export-forfeits" class="secondary">Export</button>
+      <label class="import-label secondary">
+        Import
+        <input id="import-forfeits" type="file" accept="application/json" />
+      </label>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <section class="wheel-panel">
+      <canvas id="wheel" width="500" height="500" aria-label="Wheel of forfeits"></canvas>
+      <button id="spin" class="spin-button primary">Spin</button>
+      <div id="result" class="result" role="status" aria-live="polite"></div>
+      <div id="history" class="history"></div>
+    </section>
+
+    <aside id="menu" class="menu hidden" aria-label="Forfeit manager">
+      <header>
+        <h2>Forfeit Manager</h2>
+        <button type="button" id="close-menu" class="secondary">Close</button>
+      </header>
+      <form id="forfeit-form" class="forfeit-form">
+        <div class="form-row">
+          <label for="forfeit-name">Name</label>
+          <input id="forfeit-name" name="name" required />
+        </div>
+        <div class="form-row">
+          <label for="forfeit-weight">Weight</label>
+          <input id="forfeit-weight" name="weight" type="number" min="1" value="1" required />
+        </div>
+        <div class="form-row">
+          <label for="forfeit-dependencies">Dependencies<br /><small>(comma separated)</small></label>
+          <input id="forfeit-dependencies" name="dependencies" placeholder="e.g. Push-ups, Sing" />
+        </div>
+        <div class="form-row checkbox-row">
+          <input id="forfeit-remove" name="removeOnSelect" type="checkbox" checked />
+          <label for="forfeit-remove">Remove after chosen</label>
+        </div>
+        <button type="submit" class="primary">Add Forfeit</button>
+      </form>
+
+      <section class="forfeit-list-section">
+        <header>
+          <h3>Current Forfeits</h3>
+        </header>
+        <ul id="forfeit-list" class="forfeit-list"></ul>
+      </section>
+    </aside>
+  </main>
+
+  <template id="forfeit-row-template">
+    <li class="forfeit-row">
+      <div class="forfeit-summary">
+        <h4 class="forfeit-name"></h4>
+        <p class="forfeit-details"></p>
+      </div>
+      <div class="forfeit-actions">
+        <button class="secondary edit">Edit</button>
+        <button class="danger delete">Delete</button>
+      </div>
+    </li>
+  </template>
+
+  <dialog id="edit-dialog">
+    <form method="dialog" id="edit-form">
+      <h3>Edit Forfeit</h3>
+      <label>
+        Name
+        <input name="name" required />
+      </label>
+      <label>
+        Weight
+        <input name="weight" type="number" min="1" required />
+      </label>
+      <label>
+        Dependencies<br /><small>(comma separated)</small>
+        <input name="dependencies" />
+      </label>
+      <label class="dialog-checkbox">
+        <input name="removeOnSelect" type="checkbox" /> Remove after chosen
+      </label>
+      <menu>
+        <button value="cancel" class="secondary">Cancel</button>
+        <button value="confirm" class="primary">Save</button>
+      </menu>
+    </form>
+  </dialog>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
