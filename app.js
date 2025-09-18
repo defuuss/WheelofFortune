@@ -103,6 +103,7 @@ function sync() {
   saveToStorage(STORAGE_KEY, forfeits);
   drawWheel();
   renderList();
+  updateSpinAvailability();
 }
 
 function renderList() {
@@ -133,6 +134,10 @@ function renderList() {
     }
     details.push(forfeit.removeOnSelect ? 'Removed after selection' : 'Stays on wheel');
     node.querySelector('.forfeit-details').textContent = details.join(' • ');
+
+    const eligible = isEligible(forfeit, dependenciesMet);
+    node.classList.toggle('ineligible', !eligible);
+    node.setAttribute('aria-disabled', String(!eligible));
 
     node.querySelector('.delete').addEventListener('click', () => deleteForfeit(forfeit.id));
     node.querySelector('.edit').addEventListener('click', () => openEditDialog(forfeit));
@@ -206,9 +211,14 @@ function drawWheel() {
   ctx.translate(centerX, centerY);
   ctx.rotate(rotation);
 
+  let eligibleCount = 0;
+
   segments.forEach((segment, index) => {
     const { item, startAngle, endAngle } = segment;
     const eligible = isEligible(item, dependenciesMet);
+    if (eligible) {
+      eligibleCount += 1;
+    }
 
     ctx.beginPath();
     ctx.moveTo(0, 0);
@@ -227,6 +237,20 @@ function drawWheel() {
   });
 
   ctx.restore();
+  if (eligibleCount === 0) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 20px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('All forfeits locked', centerX, centerY - 10);
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Complete prerequisites to spin', centerX, centerY + 16);
+    ctx.restore();
+  }
   drawPointer(centerX, centerY, radius);
 }
 
@@ -254,9 +278,26 @@ function isEligible(forfeit, dependenciesMet) {
   return forfeit.dependencies.every((depName) => dependenciesMet.has(depName.toLowerCase()));
 }
 
-function chooseForfeit() {
+function getEligibleForfeits() {
   const dependenciesMet = getCompletedNames();
-  const eligible = forfeits.filter((f) => isEligible(f, dependenciesMet));
+  return forfeits.filter((f) => isEligible(f, dependenciesMet));
+}
+
+function updateSpinAvailability() {
+  const eligible = getEligibleForfeits();
+  const hasEligible = eligible.length > 0;
+  spinButton.disabled = !hasEligible || spinning;
+  spinButton.title = hasEligible
+    ? 'Spin the wheel'
+    : 'Add eligible forfeits with weight above zero and satisfied dependencies to spin';
+  spinButton.setAttribute('aria-disabled', String(!hasEligible));
+  if (!hasEligible && !spinning && (!resultEl.textContent || resultEl.textContent.startsWith('Waiting'))) {
+    resultEl.textContent = 'Waiting for eligible forfeits...';
+  }
+}
+
+function chooseForfeit() {
+  const eligible = getEligibleForfeits();
   if (!eligible.length) {
     return null;
   }
@@ -315,6 +356,7 @@ async function spin() {
   const selected = chooseForfeit();
   if (!selected) {
     resultEl.textContent = 'No eligible forfeits available yet.';
+    updateSpinAvailability();
     return;
   }
 
@@ -325,7 +367,7 @@ async function spin() {
   }
 
   spinning = true;
-  spinButton.disabled = true;
+  updateSpinAvailability();
   resultEl.textContent = 'Spinning...';
 
   await animateSpin(segment);
@@ -342,7 +384,7 @@ async function spin() {
   }
 
   spinning = false;
-  spinButton.disabled = false;
+  updateSpinAvailability();
 }
 
 function renderHistory() {
@@ -469,6 +511,7 @@ function init() {
   renderList();
   renderHistory();
   updateMenuState();
+  updateSpinAvailability();
 }
 
 init();
