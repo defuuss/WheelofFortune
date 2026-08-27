@@ -1,191 +1,209 @@
 # 🎡 Wheel of Fortune for SillyTavern
 
-A polished, animated **Wheel of Fortune / Wheel of Forfeits** extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern).
+A cinematic, animated **Wheel of Fortune / Wheel of Forfeits** extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern).
 
-It is designed for roleplay: spin manually, call it from STscript, let a character intentionally trigger it from dialogue, or populate the wheel directly from a SillyTavern Lorebook.
+Built for roleplay: spin manually, trigger it from STscript, let the character deliberately launch it from dialogue, or populate the wheel from a SillyTavern Lorebook. The wheel can progressively change as the roleplay intensity level changes.
 
-> The repository originally contained a standalone browser prototype. That prototype is still present (`index.html`, `app.js`, `styles.css`), while the root extension files (`manifest.json`, `index.js`, `settings.html`, `style.css`) provide the full SillyTavern integration.
+## ✨ Highlights
 
-## ✨ Features
-
-- 🎡 **Large animated visual wheel** with weighted segments and smooth deceleration.
-- 🙈 **Hidden spin mode** — choices stay concealed until the wheel lands.
-- ⚖️ **Weighted forfeits** — make common events frequent and dramatic events rare.
-- 📝 **Manual forfeit editor** directly in SillyTavern settings.
-- 📚 **Lorebook / World Info integration** — use existing SillyTavern content as wheel entries.
-- 🧠 **Character-triggered spins** — a character can deliberately output a special token such as `[[SPIN_WHEEL]]` and launch the wheel itself.
-- ⌨️ **STscript / slash commands** — `/wheel`, `/wheel hidden=true`, `/wheel mode=private`, `/wheel-open`.
-- 👁️ **Three result modes**:
-  - post the result visibly as a system message;
-  - inject the result silently into the next generation;
-  - keep the result private in the wheel UI.
-- 1️⃣ **One-shot entries** — optionally remove a forfeit after it has been selected.
-- 🕓 **Recent spin history** saved in extension settings.
-- 📱 **Responsive UI** for desktop and mobile layouts.
-- 💾 Settings persist through SillyTavern's extension settings system.
+- 🎡 **Large on-screen animated wheel** with weighted segments and smooth deceleration.
+- ⏳ **Long suspense spins** with 11–16 full rotations plus a configurable pause after the wheel stops.
+- 💥 **Large dramatic result reveal** after the selected forfeit is chosen.
+- 🎭 **Four visibility modes**:
+  - **Full** — choices and result visible;
+  - **Mystery wheel** — choices hidden, result visible;
+  - **Secret result** — choices visible, result hidden;
+  - **Blind** — choices and result both hidden.
+- 🤫 Secret results can be delivered privately to the character/AI without leaking through the UI, history, toast, pointer, or a visible system message.
+- ⚖️ **Weighted forfeits** with optional one-shot removal.
+- 🔁 **Cooldowns** — keep a selected forfeit off the wheel for N subsequent spins.
+- 📈 **Adaptive intensity levels** stored independently per SillyTavern chat.
+- 📚 **Lorebook / World Info integration** with level and cooldown metadata.
+- 🤖 **Character-triggered spins with options**, including secret modes, intensity level, and spin duration.
+- 🎨 Themes, colors, pointer, wheel size, direction, probability labels, and floating launcher customization.
+- 📱 Responsive desktop/mobile UI.
+- 💾 Uses SillyTavern extension settings; no external server or third-party JS library required.
 
 ## 📦 Installation
 
 In SillyTavern:
 
 1. Open **Extensions**.
-2. Open **Install Extension**.
-3. Install from this repository URL:
+2. Choose **Install Extension**.
+3. Install from:
 
 ```text
 https://github.com/defuuss/WheelofFortune
 ```
 
-4. Restart or reload SillyTavern if requested.
-5. Open **Extensions → Wheel of Fortune** and configure your wheel.
+4. Reload SillyTavern if requested.
+5. Open **Extensions → Wheel of Fortune**.
 
-The SillyTavern extension is now available directly from the repository's `main` branch.
-
-## 🎮 Basic use
-
-Open the extension settings and click **Open wheel** or **Spin now**.
-
-You can also use STscript:
+## 🎮 Basic commands
 
 ```text
 /wheel
-/wheel hidden=true
-/wheel mode=private
-/wheel mode=prompt
 /wheel-open
+/wof
+/spinwheel
 ```
 
-The `/wheel` command returns the title of the selected forfeit, so it can also participate in larger STscript flows.
+Mystery wheel:
 
-## 🤖 Let the character spin the wheel
+```text
+/wheel visibility=hidden-wheel
+```
 
-Enable **Allow text trigger** and **Tell the character how to trigger the wheel**.
+Secret result:
 
-The default trigger is:
+```text
+/wheel visibility=hidden-result
+```
+
+Completely blind spin:
+
+```text
+/wheel visibility=blind
+```
+
+Request a stronger level and longer spin for one spin:
+
+```text
+/wheel visibility=blind level=4 seconds=12
+```
+
+Set the persistent level for the current chat:
+
+```text
+/wheel-level level=3
+```
+
+## 🎭 Visibility and secrecy
+
+### Full
+
+The user can see all wheel labels and the final result.
+
+### Mystery wheel — `hidden-wheel`
+
+The wheel spins on screen, but the segment labels are concealed for the entire spin. The selected result is revealed dramatically afterward.
+
+### Secret result — `hidden-result`
+
+The user may see the available wheel choices, but the result remains secret. The selection pointer is hidden so the final segment cannot be inferred visually. If **silently tell the character/AI** is enabled, the chosen forfeit is injected privately into model context.
+
+### Blind — `blind`
+
+Neither the possible forfeits nor the final selected forfeit are shown to the user. The character/AI can still privately receive the result.
+
+Secret results are also masked in the wheel's recent-history display.
+
+## 🤖 Character-triggered wheel
+
+When character triggering is enabled, the model can intentionally output control tokens such as:
 
 ```text
 [[SPIN_WHEEL]]
+[[SPIN_WHEEL mode=hidden-wheel]]
+[[SPIN_WHEEL mode=hidden-result]]
+[[SPIN_WHEEL mode=blind]]
+[[SPIN_WHEEL level=3]]
+[[SPIN_WHEEL mode=blind level=4 seconds=12]]
 ```
 
-The extension adds a lightweight instruction to the active roleplay context telling the character that it may output this exact token when it intentionally wants to spin.
+The extension can inject instructions explaining these controls to the active character. It explicitly tells the model not to quote trigger tokens casually and not to reveal hidden results.
 
-When an assistant message contains the token, Wheel of Fortune automatically opens and spins.
+A ready-made prompt for adding this behavior to a SillyTavern character card is included in **[docs/CARD_INTEGRATION_PROMPT.md](docs/CARD_INTEGRATION_PROMPT.md)**.
 
-You can replace the token with anything distinctive, for example:
+## 📈 Adaptive forfeits over time
+
+Each forfeit can have:
+
+- a **minimum level**;
+- a **maximum level**;
+- a **weight**;
+- a **cooldown in spins**;
+- optional **one-shot** removal.
+
+When adaptive mode is enabled, the extension stores a separate level and spin count for each SillyTavern chat. It can automatically increase the level after a configurable number of completed spins.
+
+That means the wheel can evolve naturally:
+
+| Level | Example purpose |
+| ---: | --- |
+| 1 | harmless / introductory outcomes |
+| 2 | more personal challenges |
+| 3 | stronger consequences |
+| 4 | dramatic or rare events |
+| 5 | major one-shot / plot-changing events |
+
+A level-1 forfeit can disappear later, while stronger forfeits automatically become eligible as the level rises.
+
+## 📚 Lorebook-powered adaptive wheels
+
+Use a normal SillyTavern Lorebook entry title/comment like:
 
 ```text
-<WHEEL_SPIN>
-!spin-the-wheel!
-[[FORTUNE]]
+[WHEEL] [weight=3] [min=2] [max=4] [cooldown=2] Tell a secret
 ```
 
-A distinctive token is recommended to avoid accidental activation.
-
-## 📚 Lorebook-powered forfeits
-
-Set **Forfeit source** to **SillyTavern Lorebook / World Info** and choose a Lorebook.
-
-The recommended mode imports only entries tagged with `[WHEEL]`.
-
-Example Lorebook entry title/comment:
+Or make an outcome appear only at level 5:
 
 ```text
-[WHEEL] [weight=3] Tell an embarrassing secret
+[WHEEL] [weight=1] [level=5] [once] Major plot twist
 ```
 
-Entry content:
+Supported metadata:
 
-```text
-The selected character must reveal an embarrassing but believable secret that fits the established roleplay.
-```
+- `[WHEEL]`
+- `[weight=3]`
+- `[min=2]` / `[minlevel=2]`
+- `[max=4]` / `[maxlevel=4]`
+- `[level=3]`
+- `[cooldown=2]`
+- `[once]`
 
-Optional metadata:
+See **[docs/LOREBOOK.md](docs/LOREBOOK.md)** for the full design guide.
 
-- `[WHEEL]` — include the entry in tagged-only mode.
-- `[weight=3]` — relative selection weight. Default is `1`.
-- `[once]` — remove this entry after it is selected.
+## 🎨 Customization
 
-See **[docs/LOREBOOK.md](docs/LOREBOOK.md)** for the complete setup guide.
+The settings panel includes:
 
-## 👁️ Result modes
-
-### System message
-
-The result appears visibly in the SillyTavern chat as a Wheel of Fortune system message.
-
-### Silent prompt injection
-
-The result is added to SillyTavern's extension prompt for the next generation. This is ideal for immersive roleplay because the model receives the forfeit without adding an extra visible chat message.
-
-### Private
-
-The wheel reveals the result only in the visual UI. Nothing is injected into the model context.
-
-## 🙈 Hidden spins
-
-Enable **Hidden spin** or run:
-
-```text
-/wheel hidden=true
-```
-
-The labels are hidden while the wheel spins. Only once it stops are the choices and selected forfeit revealed.
-
-This is useful when the player should not know the possible outcomes beforehand.
-
-## ⚖️ How weighting works
-
-Weights are relative rather than percentages.
-
-| Forfeit | Weight | Relative chance |
-| --- | ---: | ---: |
-| Nothing happens | 5 | Very common |
-| Truth | 3 | Common |
-| Dare | 3 | Common |
-| Confession | 2 | Uncommon |
-| Major plot twist | 1 | Rare |
-
-The visual segment sizes match the configured weights.
+- wheel title;
+- Neon, Classic, Pastel, Ocean, Fire, Monochrome, or custom colors;
+- center/accent color;
+- pointer color;
+- label color;
+- wheel size;
+- clockwise, counter-clockwise, or random direction;
+- optional probability percentages;
+- floating 🎡 launcher;
+- spin duration;
+- post-stop reveal delay;
+- default visibility behavior.
 
 ## 🧩 Architecture
 
-The extension intentionally uses SillyTavern's native extension APIs:
+The extension uses SillyTavern's native extension APIs for:
 
-- extension settings for persistence;
-- World Info APIs for Lorebook loading;
-- extension prompts for character trigger hints and silent result injection;
-- message events for character/user trigger detection;
-- slash command registration for STscript support;
-- standard third-party extension manifest and template loading.
+- settings persistence;
+- World Info / Lorebook loading;
+- extension prompt injection;
+- message events;
+- slash commands / STscript;
+- standard third-party extension loading.
 
-No external server and no third-party JavaScript dependencies are required.
+The repository still contains the original standalone browser prototype (`index.html`, `app.js`, `styles.css`). The SillyTavern extension itself uses `manifest.json`, `index.js`, `settings.html`, and `style.css`.
 
-## 🛣️ Planned enhancements
+## 🧪 Current version
 
-Ideas for later releases:
+**v1.2.0**
 
-- multiple named wheel presets;
-- import/export wheel packs;
-- per-character and per-chat wheel presets;
-- sound effects and pointer ticks;
-- configurable wheel themes;
-- cooldowns for character-triggered spins;
-- dependency/condition rules between outcomes;
-- Quick Reply integration;
-- optional automatic generation immediately after a silent result;
-- richer Lorebook filters and tags.
-
-## 🧪 Current status
-
-**v1.0 is merged into `main`.**
-
-The implementation has been checked against the current SillyTavern extension APIs for message events, extension prompts, slash commands, settings, and World Info access. Real-world behavior should still be tested in an actual SillyTavern installation; bug reports should include the SillyTavern version and browser console error if one occurs.
+Major v1.2 additions: cinematic result reveal, longer suspense spins, four secrecy modes, advanced character trigger options, adaptive per-chat intensity levels, level-gated forfeits, and cooldowns.
 
 ## ❤️ Contributing
 
-Bug reports, ideas, UI improvements, and pull requests are welcome.
-
-If you create a particularly good roleplay wheel/Lorebook format, feel free to share it as an example pack.
+Bug reports, wheel ideas, UI improvements, Lorebook packs, and pull requests are welcome.
 
 ## License
 
