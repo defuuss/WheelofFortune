@@ -1,115 +1,261 @@
-# Lorebook-powered wheels
+# Wheel of Fortune v1.3 — Lorebook format
 
-Wheel of Fortune can use a normal SillyTavern Lorebook (World Info) as the source of wheel segments. This is the recommended approach for larger roleplay wheels because forfeits can be loaded and removed automatically by intensity level without hardcoding them into the extension.
+Wheel of Fortune can load forfeits from either:
 
-## Recommended format
+1. a selected standalone SillyTavern **Lorebook / World Info**, or
+2. the active character card's embedded **Character Lorebook / Character Book**.
 
-Create one Lorebook entry per possible forfeit. Put the short visible wheel label in the **Comment / Title** field and the full instruction in the **Content** field.
+For character cards that should travel with their own wheel, the embedded Character Lorebook source is recommended.
 
-When the extension is set to **Only entries marked `[WHEEL]`**, add `[WHEEL]` to the entry title/comment or one of its keys.
+## Recommended safety setting
+
+Use:
+
+```text
+Import entries: Only entries marked [WHEEL]
+```
+
+Tagged-only mode prevents unrelated Lorebook entries from accidentally becoming wheel segments.
+
+## One Lorebook entry = one wheel segment
+
+Put the short wheel label and all metadata in the entry's **Comment / Title** field.
+
+Put only the detailed roleplay instruction in the entry's **Content** field.
 
 Example:
 
-**Comment / Title**
+### Comment / Title
 
 ```text
-[WHEEL] [weight=3] [min=2] [max=4] [cooldown=2] Tell a secret
+[WHEEL] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
 ```
 
-**Content**
+### Content
 
 ```text
-The selected character must reveal a believable secret they have been trying to hide. It should fit established characterization and current story context.
+The selected character must reveal a believable personal secret that fits established characterization and the current scene. Do not contradict known lore.
 ```
 
-## Persistence: stay, leave temporarily, or disappear permanently
-
-Lorebook forfeits have three useful persistence behaviors.
-
-### 1. Stay on the wheel
-
-This is the default. Do **not** add `[once]` or a cooldown if the forfeit should remain eligible after it is selected.
+The metadata is removed from the visible wheel label, so the wheel displays only:
 
 ```text
-[WHEEL] [weight=3] Tell a secret
+Reveal a secret
 ```
 
-After it wins, it stays available and can be selected again on a later spin.
-
-### 2. Leave temporarily, then return
-
-Use `[cooldown=N]` when the forfeit should disappear for a number of completed spins and later come back automatically.
-
-```text
-[WHEEL] [weight=3] [cooldown=2] Tell a secret
-```
-
-If this result wins, it is excluded from the next two completed spins and then becomes eligible again, provided its level range is still valid.
-
-### 3. Remove permanently after it wins
-
-Use `[once]` for true one-shot outcomes.
-
-```text
-[WHEEL] [weight=1] [once] Major plot twist
-```
-
-When **Honor `[once]` / one-shot entries** is enabled in the extension settings, the entry is permanently removed from the active wheel after it is selected.
-
-This distinction is useful when building adaptive wheels: common forfeits can repeat, memorable outcomes can have cooldowns, and irreversible plot events can be one-shot.
-
-## Metadata tags
+## Official metadata
 
 | Tag | Meaning |
 | --- | --- |
-| `[WHEEL]` | Include the entry when using tagged-only mode. |
-| `[weight=3]` | Relative probability weight. Default is `1`. |
-| `[min=2]` | Entry becomes eligible starting at level 2. |
-| `[max=4]` | Entry stops being eligible after level 4. |
-| `[level=3]` | Shortcut for an entry that is eligible only at exactly level 3. |
-| `[cooldown=2]` | After selection, keep this entry off the wheel for the next 2 completed spins, then return it automatically. |
-| `[once]` | Permanently remove the entry after it is selected, when one-shot removal is enabled. |
+| `[WHEEL]` | Marks the entry as a wheel segment. Always recommended. |
+| `[id=secret_01]` | Stable identity for cooldown / one-shot tracking. Strongly recommended. |
+| `[weight=3]` | Relative selection weight. Must be positive. |
+| `[min=2]` | First intensity level where the entry is eligible. |
+| `[max=4]` | Last intensity level where the entry is eligible. |
+| `[level=3]` | Entry is eligible only at exactly level 3. |
+| `[cooldown=2]` | Hide the entry for the next 2 completed spins after it wins, then return it. |
+| `[once]` | Permanently remove the entry after it wins for the current chat. |
 
-`[minlevel=2]` and `[maxlevel=4]` are also accepted.
+Aliases `[minlevel=N]` and `[maxlevel=N]` are accepted, but `[min=N]` / `[max=N]` are preferred for new packs.
 
-Weights are relative. An entry with `weight=4` is four times as likely to be selected as one with `weight=1`, provided both are currently eligible.
+## Stable IDs
 
-## Adaptive intensity example
-
-A useful five-level wheel might look like this:
+A stable ID should be supplied on every wheel entry:
 
 ```text
-[WHEEL] [weight=5] [min=1] [max=2] [cooldown=1] Harmless question
-[WHEEL] [weight=4] [min=1] [max=3] Small challenge
-[WHEEL] [weight=3] [min=2] [max=4] [cooldown=2] Personal confession
-[WHEEL] [weight=2] [min=3] [max=5] [cooldown=2] Major complication
-[WHEEL] [weight=1] [min=4] [max=5] [once] Major plot twist
-[WHEEL] [weight=1] [min=1] [max=5] [cooldown=2] Lucky escape
+[id=truth_01]
+[id=challenge_social_02]
+[id=plot_twist_01]
 ```
 
-At level 1 only the mild entries appear. As the chat's wheel level rises, new entries are automatically loaded while lower-level entries can disappear. The wheel therefore changes over time without editing the Lorebook during play.
+Rules:
 
-Notice that **Small challenge** has no `[once]` and no cooldown, so it remains on the wheel whenever its level range is active. **Personal confession** temporarily disappears for two spins after selection. **Major plot twist** is removed permanently after it wins.
+- 1–64 characters;
+- letters, numbers, `_`, `-`, `.`, and `:` only;
+- no spaces;
+- unique within the wheel source;
+- do not change the ID merely because the visible title changes.
 
-## Per-chat progression
+Good:
 
-Adaptive progression is stored separately for each SillyTavern chat.
+```text
+[WHEEL] [id=secret_01] [weight=3] Reveal a secret
+```
 
-The extension can:
+Later you may safely rename the visible title:
 
-- start a chat at a configurable default level;
-- automatically increase one level after every N completed spins;
-- let you manually raise or lower the current chat level;
-- let a slash command or character trigger request a specific level for a single spin;
-- apply per-entry cooldowns;
-- permanently remove `[once]` entries;
-- leave ordinary Lorebook entries on the wheel indefinitely.
+```text
+[WHEEL] [id=secret_01] [weight=3] Reveal your biggest secret
+```
 
-Use `/wheel-level level=3` to change the active chat level manually.
+The extension still recognizes it as the same wheel item.
+
+## Persistence types
+
+There are three intended behaviors.
+
+### Repeatable — stays on the wheel
+
+```text
+[WHEEL] [id=truth_01] [weight=4] [min=1] [max=5] Answer honestly
+```
+
+No `[once]` and no `[cooldown]` means the item remains available after winning.
+
+### Cooldown — leaves temporarily, then returns
+
+```text
+[WHEEL] [id=confession_01] [weight=3] [min=2] [max=5] [cooldown=2] Confession
+```
+
+After it wins, it is unavailable for the next two completed spins and then automatically returns.
+
+### One-shot — permanently removed for this chat
+
+```text
+[WHEEL] [id=plot_01] [weight=1] [level=5] [once] Major turning point
+```
+
+After it wins, it disappears for the current SillyTavern chat. A different/new chat has its own independent one-shot state.
+
+The **Reset wheel state for this chat** button clears the current chat's level, spin count, cooldowns, and one-shot removals.
+
+## Do not combine contradictory metadata
+
+Avoid:
+
+```text
+[once] [cooldown=3]
+```
+
+Use one or the other.
+
+Avoid:
+
+```text
+[level=3] [min=1] [max=5]
+```
+
+Use exact level:
+
+```text
+[level=3]
+```
+
+or a range:
+
+```text
+[min=1] [max=5]
+```
+
+Do not define the same field more than once:
+
+```text
+[weight=2] [weight=5]
+```
+
+is invalid.
+
+## Adaptive five-level example
+
+```text
+[WHEEL] [id=light_01] [weight=5] [min=1] [max=2] Light challenge
+[WHEEL] [id=truth_01] [weight=5] [min=1] [max=3] Answer honestly
+[WHEEL] [id=choice_01] [weight=4] [min=1] [max=5] Make a choice
+[WHEEL] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
+[WHEEL] [id=role_01] [weight=3] [min=2] [max=5] [cooldown=1] Role reversal
+[WHEEL] [id=complication_01] [weight=2] [min=3] [max=5] [cooldown=2] Complication
+[WHEEL] [id=rare_01] [weight=1] [min=4] [max=5] [cooldown=3] Rare event
+[WHEEL] [id=plot_01] [weight=1] [level=5] [once] Major turning point
+[WHEEL] [id=escape_01] [weight=2] [min=1] [max=5] Lucky escape
+```
+
+A practical interpretation is:
+
+| Level | Purpose |
+| ---: | --- |
+| 1 | light / introductory |
+| 2 | more personal / consequential |
+| 3 | stronger scene changes |
+| 4 | rare / dramatic |
+| 5 | major / exceptional / one-shot |
+
+These are design suggestions, not hard-coded meanings. A pack can define another theme as long as its ranges are internally consistent.
+
+## Avoid cooldown deadlocks
+
+A poorly designed level might contain only:
+
+```text
+A [cooldown=5]
+B [cooldown=5]
+```
+
+If both are cooling down, older versions could reach zero eligible entries and become stuck because no spin could advance the cooldown counter.
+
+v1.3 includes a safety mechanism: if every otherwise-valid entry is cooling down, the entry or entries whose cooldown ends first are temporarily released for that spin.
+
+This prevents the wheel from locking, but it is still better design to include at least **2–3 always-repeatable entries at every level**.
+
+## Validator
+
+Before using or sharing a wheel pack, run:
+
+```text
+/wheel-validate
+```
+
+or click:
+
+```text
+Validate / preview Lorebook
+```
+
+The validator checks for problems including:
+
+- duplicate stable IDs;
+- malformed IDs;
+- invalid / non-positive weights;
+- invalid level values;
+- `min > max`;
+- duplicate metadata fields;
+- `[level]` mixed with `[min]` / `[max]`;
+- `[once]` mixed with cooldown;
+- missing Content;
+- missing visible titles;
+- missing `[WHEEL]` when wheel-like metadata is detected in tagged-only mode;
+- levels with zero valid entries;
+- levels with no repeatable baseline entries.
+
+It also shows a per-level table with the number of:
+
+- total entries;
+- repeatable entries;
+- cooldown entries;
+- one-shot entries.
+
+Entries containing validation **errors** are not allowed onto the active wheel. Warnings do not block an entry.
+
+## Character Lorebook support
+
+Set the extension source to:
+
+```text
+Active character card Lorebook
+```
+
+The extension reads the active SillyTavern character's embedded `character_book.entries` directly. This makes the wheel data portable with the character card.
+
+Both common entry representations are supported:
+
+- standalone World Info entries using fields such as `key`, `uid`, `disable`, `comment`, and `content`;
+- Character Book entries using fields such as `keys`, `id`, `enabled`, `comment` / `name`, and `content`.
+
+Non-wheel entries can stay in the same Character Lorebook safely when tagged-only import mode is used.
 
 ## Character-triggered spins
 
-The character can deliberately launch the visual wheel with control tokens:
+A character may deliberately launch the wheel with:
 
 ```text
 [[SPIN_WHEEL]]
@@ -120,46 +266,6 @@ The character can deliberately launch the visual wheel with control tokens:
 [[SPIN_WHEEL mode=blind level=4 seconds=12]]
 ```
 
-The advanced token supports:
+The extension can inject a compact instruction teaching the active character these controls. The model is instructed not to expose hidden results or internal Lorebook metadata.
 
-- `mode=full`
-- `mode=hidden-wheel`
-- `mode=hidden-result`
-- `mode=blind`
-- `level=N`
-- `seconds=N`
-- `result=system|prompt|private`
-
-When the **character hint** option is enabled, the extension tells the active model how to use these controls and warns it not to reveal hidden results.
-
-## Visibility modes
-
-### Full
-
-The wheel labels and selected result are visible.
-
-### Mystery wheel (`hidden-wheel`)
-
-The user sees a spinning wheel but cannot see what the segments contain. The selected result is revealed after the spin.
-
-### Secret result (`hidden-result`)
-
-The user can see all wheel choices, but the selected result is hidden. If **silently tell the character/AI** is enabled, the extension injects the secret result into model context without revealing it to the user.
-
-### Blind
-
-Neither the wheel choices nor the selected result are shown. The character can still privately receive the selected result.
-
-Secret results are masked in the on-screen history and are never posted as visible system messages.
-
-## Designing good adaptive wheels
-
-A practical pattern is:
-
-- level 1: harmless / introductory outcomes;
-- level 2: more personal or consequential outcomes;
-- level 3: stronger roleplay changes;
-- level 4: rare or dramatic outcomes;
-- level 5: major one-shot events or plot-changing consequences.
-
-Use ordinary repeatable entries for the wheel's core content. Use cooldowns on memorable outcomes so the wheel feels varied. Reserve `[once]` for events that truly should never repeat in that chat/setup.
+See **[CARD_INTEGRATION_PROMPT.md](CARD_INTEGRATION_PROMPT.md)** for a ready-made prompt that teaches another AI how to modify a SillyTavern card and build its Character Lorebook correctly.

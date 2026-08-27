@@ -2,44 +2,41 @@
 
 A cinematic, animated **Wheel of Fortune / Wheel of Forfeits** extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern).
 
-Built for roleplay: spin manually, trigger it from STscript, let the character deliberately launch it from dialogue, or populate the wheel from a SillyTavern Lorebook. The wheel can progressively change as the roleplay intensity level changes.
+Built for roleplay: spin manually, call it from STscript, let the character intentionally launch it from dialogue, or populate the wheel from a standalone Lorebook **or directly from the active character card's embedded Character Lorebook**.
 
 ## ✨ Highlights
 
-- 🎡 **Large on-screen animated wheel** with weighted segments and smooth deceleration.
-- ⏳ **Long suspense spins** with 11–16 full rotations plus a configurable pause after the wheel stops.
-- 💥 **Large dramatic result reveal** after the selected forfeit is chosen.
-- 🎭 **Four visibility modes**:
-  - **Full** — choices and result visible;
-  - **Mystery wheel** — choices hidden, result visible;
-  - **Secret result** — choices visible, result hidden;
-  - **Blind** — choices and result both hidden.
-- 🤫 Secret results can be delivered privately to the character/AI without leaking through the UI, history, toast, pointer, or a visible system message.
-- ⚖️ **Weighted forfeits** with optional one-shot removal.
-- 🔁 **Cooldowns** — keep a selected forfeit off the wheel for N subsequent spins.
-- 📈 **Adaptive intensity levels** stored independently per SillyTavern chat.
-- 📚 **Lorebook / World Info integration** with level and cooldown metadata.
-- 🤖 **Character-triggered spins with options**, including secret modes, intensity level, and spin duration.
-- 🎨 Themes, colors, pointer, wheel size, direction, probability labels, and floating launcher customization.
+- 🎡 Large animated on-screen weighted wheel.
+- ⏳ Long suspense spins with **11–16 rotations** plus a configurable post-stop reveal pause.
+- 💥 Large dramatic result reveal.
+- 🎭 Four visibility modes: **Full**, **Mystery wheel**, **Secret result**, and **Blind**.
+- 🤫 Hidden-result modes mask the result from the UI, history, pointer, toast and visible system output while optionally telling the character/AI privately.
+- ⚖️ Weighted forfeits.
+- 🔁 Per-entry cooldowns.
+- 1️⃣ Per-chat one-shot forfeits.
+- 📈 Adaptive intensity levels stored independently per chat.
+- 📚 Standalone Lorebook / World Info source.
+- 🪪 **Active character card Lorebook / Character Book source** — wheel packs can travel with character cards.
+- 🆔 Stable Lorebook IDs using `[id=...]`.
+- 🛡️ Built-in Lorebook validator and level preview.
+- 🔒 Invalid wheel entries are excluded instead of silently repaired.
+- 🧯 Cooldown deadlock protection.
+- 🤖 Character-triggered spins with visibility, level and duration options.
+- 🎨 Themes, custom colors, wheel size, pointer, direction, probability labels and floating launcher.
 - 📱 Responsive desktop/mobile UI.
-- 💾 Uses SillyTavern extension settings; no external server or third-party JS library required.
+- 💾 No external server or third-party JavaScript library required.
 
 ## 📦 Installation
 
-In SillyTavern:
-
-1. Open **Extensions**.
-2. Choose **Install Extension**.
-3. Install from:
+In SillyTavern install the extension from:
 
 ```text
 https://github.com/defuuss/WheelofFortune
 ```
 
-4. Reload SillyTavern if requested.
-5. Open **Extensions → Wheel of Fortune**.
+Then reload SillyTavern and open **Extensions → Wheel of Fortune**.
 
-## 🎮 Basic commands
+## 🎮 Commands
 
 ```text
 /wheel
@@ -60,13 +57,13 @@ Secret result:
 /wheel visibility=hidden-result
 ```
 
-Completely blind spin:
+Completely blind:
 
 ```text
 /wheel visibility=blind
 ```
 
-Request a stronger level and longer spin for one spin:
+One stronger, longer blind spin:
 
 ```text
 /wheel visibility=blind level=4 seconds=12
@@ -78,29 +75,15 @@ Set the persistent level for the current chat:
 /wheel-level level=3
 ```
 
-## 🎭 Visibility and secrecy
+Validate the current wheel source:
 
-### Full
-
-The user can see all wheel labels and the final result.
-
-### Mystery wheel — `hidden-wheel`
-
-The wheel spins on screen, but the segment labels are concealed for the entire spin. The selected result is revealed dramatically afterward.
-
-### Secret result — `hidden-result`
-
-The user may see the available wheel choices, but the result remains secret. The selection pointer is hidden so the final segment cannot be inferred visually. If **silently tell the character/AI** is enabled, the chosen forfeit is injected privately into model context.
-
-### Blind — `blind`
-
-Neither the possible forfeits nor the final selected forfeit are shown to the user. The character/AI can still privately receive the result.
-
-Secret results are also masked in the wheel's recent-history display.
+```text
+/wheel-validate
+```
 
 ## 🤖 Character-triggered wheel
 
-When character triggering is enabled, the model can intentionally output control tokens such as:
+The active character can deliberately output:
 
 ```text
 [[SPIN_WHEEL]]
@@ -111,99 +94,161 @@ When character triggering is enabled, the model can intentionally output control
 [[SPIN_WHEEL mode=blind level=4 seconds=12]]
 ```
 
-The extension can inject instructions explaining these controls to the active character. It explicitly tells the model not to quote trigger tokens casually and not to reveal hidden results.
+The extension can inject a compact instruction explaining these controls to the character. Trigger tokens are treated as control commands rather than ordinary dialogue.
 
-A ready-made prompt for adding this behavior to a SillyTavern character card is included in **[docs/CARD_INTEGRATION_PROMPT.md](docs/CARD_INTEGRATION_PROMPT.md)**.
+For an AI that is creating/editing a SillyTavern card, use **[docs/CARD_INTEGRATION_PROMPT.md](docs/CARD_INTEGRATION_PROMPT.md)**. It now teaches the AI both the trigger behavior **and how to build the character's embedded Wheel Lorebook correctly**.
 
-## 📈 Adaptive forfeits over time
+## 📚 Official v1.3 Lorebook format
 
-Each forfeit can have:
+One Lorebook entry equals one wheel segment.
 
-- a **minimum level**;
-- a **maximum level**;
-- a **weight**;
-- a **cooldown in spins**;
-- optional **one-shot** removal.
-
-When adaptive mode is enabled, the extension stores a separate level and spin count for each SillyTavern chat. It can automatically increase the level after a configurable number of completed spins.
-
-That means the wheel can evolve naturally:
-
-| Level | Example purpose |
-| ---: | --- |
-| 1 | harmless / introductory outcomes |
-| 2 | more personal challenges |
-| 3 | stronger consequences |
-| 4 | dramatic or rare events |
-| 5 | major one-shot / plot-changing events |
-
-A level-1 forfeit can disappear later, while stronger forfeits automatically become eligible as the level rises.
-
-## 📚 Lorebook-powered adaptive wheels
-
-Use a normal SillyTavern Lorebook entry title/comment like:
+Put metadata in **Comment / Title**:
 
 ```text
-[WHEEL] [weight=3] [min=2] [max=4] [cooldown=2] Tell a secret
+[WHEEL] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
 ```
 
-Or make an outcome appear only at level 5:
+Put only the detailed roleplay instruction in **Content**.
+
+Exact-level one-shot example:
 
 ```text
-[WHEEL] [weight=1] [level=5] [once] Major plot twist
+[WHEEL] [id=plot_01] [weight=1] [level=5] [once] Major turning point
 ```
 
 Supported metadata:
 
 - `[WHEEL]`
+- `[id=unique_stable_id]`
 - `[weight=3]`
-- `[min=2]` / `[minlevel=2]`
-- `[max=4]` / `[maxlevel=4]`
+- `[min=2]`
+- `[max=4]`
 - `[level=3]`
 - `[cooldown=2]`
 - `[once]`
 
-See **[docs/LOREBOOK.md](docs/LOREBOOK.md)** for the full design guide.
+### Persistence
 
-## 🎨 Customization
+```text
+(no persistence tag)
+```
 
-The settings panel includes:
+→ stays on the wheel.
 
-- wheel title;
-- Neon, Classic, Pastel, Ocean, Fire, Monochrome, or custom colors;
-- center/accent color;
-- pointer color;
-- label color;
-- wheel size;
-- clockwise, counter-clockwise, or random direction;
-- optional probability percentages;
-- floating 🎡 launcher;
-- spin duration;
-- post-stop reveal delay;
-- default visibility behavior.
+```text
+[cooldown=2]
+```
+
+→ leaves for two completed spins and then returns.
+
+```text
+[once]
+```
+
+→ permanently disappears for the **current chat** after winning.
+
+One-shot state, cooldowns, spin count and adaptive level are all isolated per SillyTavern chat.
+
+## 🪪 Active character Lorebook
+
+v1.3 adds a source option:
+
+```text
+Active character card Lorebook
+```
+
+The extension reads the active character's embedded `character_book.entries` directly. This allows a character card to contain its own wheel pack.
+
+Use **tagged-only mode** so ordinary character lore remains untouched and only entries containing `[WHEEL]` become wheel segments.
+
+## 🛡️ Lorebook validator
+
+Click **Validate / preview Lorebook** or run:
+
+```text
+/wheel-validate
+```
+
+The validator checks for:
+
+- duplicate or malformed stable IDs;
+- invalid weights;
+- invalid level ranges;
+- `min > max`;
+- `[level]` mixed with `[min]/[max]`;
+- `[once]` mixed with cooldown;
+- duplicate metadata fields;
+- missing title or Content;
+- missing `[WHEEL]` markers when wheel metadata is detected;
+- levels with no valid entries;
+- levels with no repeatable baseline entries.
+
+It also previews each level and shows counts for **total**, **repeatable**, **cooldown**, and **one-shot** entries.
+
+Entries with validation errors do not enter the active wheel.
+
+## 🧯 Cooldown deadlock protection
+
+If every otherwise-valid entry at the active level is currently cooling down, v1.3 temporarily releases the entry or entries whose cooldown expires first. This prevents a wheel from reaching zero selectable segments and becoming permanently stuck.
+
+A well-designed pack should still contain at least **2–3 always-repeatable entries at every level**.
+
+## 🎭 Visibility modes
+
+### Full
+
+Choices and selected result are visible.
+
+### Mystery wheel — `hidden-wheel`
+
+Wheel labels are concealed; the selected result is revealed afterward.
+
+### Secret result — `hidden-result`
+
+Choices are visible, but the selected result is hidden. The pointer is hidden too, preventing the winning segment from being inferred visually. The character/AI can receive the result privately.
+
+### Blind — `blind`
+
+Neither choices nor result are shown to the user. The character/AI can still receive the result privately.
+
+## 📈 Adaptive levels
+
+Forfeits may be level-gated. A typical five-level design might use:
+
+| Level | Example role |
+| ---: | --- |
+| 1 | introductory / light |
+| 2 | more personal / consequential |
+| 3 | stronger scene changes |
+| 4 | rare / dramatic |
+| 5 | exceptional / major one-shot |
+
+These meanings are pack-design suggestions, not hard-coded content rules.
+
+## 📖 Documentation
+
+- **[Lorebook format & validator guide](docs/LOREBOOK.md)**
+- **[AI character-card + Character Lorebook integration prompt](docs/CARD_INTEGRATION_PROMPT.md)**
 
 ## 🧩 Architecture
 
-The extension uses SillyTavern's native extension APIs for:
+v1.3 moves the active runtime into modular files under `v13/`:
 
-- settings persistence;
-- World Info / Lorebook loading;
-- extension prompt injection;
-- message events;
-- slash commands / STscript;
-- standard third-party extension loading.
+```text
+v13/state.js       per-chat state and settings
+v13/lorebook.js    parser, validation and eligibility engine
+v13/wheel.js       visual wheel, suspense and result delivery
+v13/settings.js    settings and validator UI
+v13/index.js       commands, message triggers and initialization
+```
 
-The repository still contains the original standalone browser prototype (`index.html`, `app.js`, `styles.css`). The SillyTavern extension itself uses `manifest.json`, `index.js`, `settings.html`, and `style.css`.
+The previous root `index.js` remains in the repository as the older implementation/reference; `manifest.json` loads the v1.3 runtime.
 
 ## 🧪 Current version
 
-**v1.2.0**
+**v1.3.0**
 
-Major v1.2 additions: cinematic result reveal, longer suspense spins, four secrecy modes, advanced character trigger options, adaptive per-chat intensity levels, level-gated forfeits, and cooldowns.
-
-## ❤️ Contributing
-
-Bug reports, wheel ideas, UI improvements, Lorebook packs, and pull requests are welcome.
+Major v1.3 additions: embedded Character Lorebook support, stable `[id=...]` metadata, per-chat one-shot removals, validation/error blocking, level coverage preview, duplicate-ID detection, cooldown deadlock protection, and an expanded AI card-integration workflow.
 
 ## License
 
