@@ -22,6 +22,42 @@ Example:
 The selected character must reveal a believable secret they have been trying to hide. It should fit established characterization and current story context.
 ```
 
+## Persistence: stay, leave temporarily, or disappear permanently
+
+Lorebook forfeits have three useful persistence behaviors.
+
+### 1. Stay on the wheel
+
+This is the default. Do **not** add `[once]` or a cooldown if the forfeit should remain eligible after it is selected.
+
+```text
+[WHEEL] [weight=3] Tell a secret
+```
+
+After it wins, it stays available and can be selected again on a later spin.
+
+### 2. Leave temporarily, then return
+
+Use `[cooldown=N]` when the forfeit should disappear for a number of completed spins and later come back automatically.
+
+```text
+[WHEEL] [weight=3] [cooldown=2] Tell a secret
+```
+
+If this result wins, it is excluded from the next two completed spins and then becomes eligible again, provided its level range is still valid.
+
+### 3. Remove permanently after it wins
+
+Use `[once]` for true one-shot outcomes.
+
+```text
+[WHEEL] [weight=1] [once] Major plot twist
+```
+
+When **Honor `[once]` / one-shot entries** is enabled in the extension settings, the entry is permanently removed from the active wheel after it is selected.
+
+This distinction is useful when building adaptive wheels: common forfeits can repeat, memorable outcomes can have cooldowns, and irreversible plot events can be one-shot.
+
 ## Metadata tags
 
 | Tag | Meaning |
@@ -31,7 +67,7 @@ The selected character must reveal a believable secret they have been trying to 
 | `[min=2]` | Entry becomes eligible starting at level 2. |
 | `[max=4]` | Entry stops being eligible after level 4. |
 | `[level=3]` | Shortcut for an entry that is eligible only at exactly level 3. |
-| `[cooldown=2]` | After selection, keep this entry off the wheel for the next 2 completed spins. |
+| `[cooldown=2]` | After selection, keep this entry off the wheel for the next 2 completed spins, then return it automatically. |
 | `[once]` | Permanently remove the entry after it is selected, when one-shot removal is enabled. |
 
 `[minlevel=2]` and `[maxlevel=4]` are also accepted.
@@ -44,7 +80,7 @@ A useful five-level wheel might look like this:
 
 ```text
 [WHEEL] [weight=5] [min=1] [max=2] [cooldown=1] Harmless question
-[WHEEL] [weight=4] [min=1] [max=3] [cooldown=1] Small challenge
+[WHEEL] [weight=4] [min=1] [max=3] Small challenge
 [WHEEL] [weight=3] [min=2] [max=4] [cooldown=2] Personal confession
 [WHEEL] [weight=2] [min=3] [max=5] [cooldown=2] Major complication
 [WHEEL] [weight=1] [min=4] [max=5] [once] Major plot twist
@@ -52,6 +88,8 @@ A useful five-level wheel might look like this:
 ```
 
 At level 1 only the mild entries appear. As the chat's wheel level rises, new entries are automatically loaded while lower-level entries can disappear. The wheel therefore changes over time without editing the Lorebook during play.
+
+Notice that **Small challenge** has no `[once]` and no cooldown, so it remains on the wheel whenever its level range is active. **Personal confession** temporarily disappears for two spins after selection. **Major plot twist** is removed permanently after it wins.
 
 ## Per-chat progression
 
@@ -64,7 +102,8 @@ The extension can:
 - let you manually raise or lower the current chat level;
 - let a slash command or character trigger request a specific level for a single spin;
 - apply per-entry cooldowns;
-- permanently remove `[once]` entries.
+- permanently remove `[once]` entries;
+- leave ordinary Lorebook entries on the wheel indefinitely.
 
 Use `/wheel-level level=3` to change the active chat level manually.
 
@@ -123,4 +162,4 @@ A practical pattern is:
 - level 4: rare or dramatic outcomes;
 - level 5: major one-shot events or plot-changing consequences.
 
-Use cooldowns on memorable outcomes so the wheel feels varied. Reserve `[once]` for events that truly should never repeat in that chat/setup.
+Use ordinary repeatable entries for the wheel's core content. Use cooldowns on memorable outcomes so the wheel feels varied. Reserve `[once]` for events that truly should never repeat in that chat/setup.
