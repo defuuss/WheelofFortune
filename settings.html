@@ -5,7 +5,7 @@
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
     </div>
     <div class="inline-drawer-content">
-      <p class="wof-muted">A real animated weighted wheel for roleplay. Open it on screen, spin manually, call it from STscript, or let the character trigger it from dialogue.</p>
+      <p class="wof-muted">A cinematic weighted wheel for roleplay: visual spins, secret modes, character-triggered controls, Lorebook sourcing, cooldowns, and adaptive intensity levels.</p>
 
       <div class="wof-row">
         <button id="wof-open" class="menu_button">🎡 Open visual wheel</button>
@@ -14,8 +14,6 @@
 
       <hr>
       <h4>🎨 Wheel appearance</h4>
-      <p class="wof-muted">Changes are saved automatically and applied to the visual wheel.</p>
-
       <label for="wof-wheel-title">Wheel title</label>
       <input id="wof-wheel-title" class="text_pole" type="text" placeholder="Wheel of Fortune">
 
@@ -33,19 +31,12 @@
       <div id="wof-custom-colors-wrap">
         <label for="wof-segment-colors">Custom segment colors</label>
         <input id="wof-segment-colors" class="text_pole" type="text" placeholder="#7c4dff, #e449d6, #ff5c8a, #ffd166">
-        <p class="wof-muted">Comma-separated CSS colors. They repeat automatically if the wheel has more segments.</p>
       </div>
 
       <div class="wof-color-grid">
-        <label>Accent / center
-          <input id="wof-accent-color" type="color">
-        </label>
-        <label>Pointer
-          <input id="wof-pointer-color" type="color">
-        </label>
-        <label>Label text
-          <input id="wof-text-color" type="color">
-        </label>
+        <label>Accent / center<input id="wof-accent-color" type="color"></label>
+        <label>Pointer<input id="wof-pointer-color" type="color"></label>
+        <label>Label text<input id="wof-text-color" type="color"></label>
       </div>
 
       <label for="wof-wheel-size">Wheel size (px)</label>
@@ -58,49 +49,73 @@
         <option value="random">Random each spin</option>
       </select>
 
-      <label class="checkbox_label">
-        <input id="wof-show-weights" type="checkbox">
-        <span>Show probability percentage on wheel segments</span>
-      </label>
-      <label class="checkbox_label">
-        <input id="wof-floating-button-enabled" type="checkbox">
-        <span>Show floating 🎡 button in SillyTavern</span>
-      </label>
+      <label class="checkbox_label"><input id="wof-show-weights" type="checkbox"><span>Show probability percentage on wheel segments</span></label>
+      <label class="checkbox_label"><input id="wof-floating-button-enabled" type="checkbox"><span>Show floating 🎡 button in SillyTavern</span></label>
 
       <hr>
-      <h4>🤖 Trigger</h4>
-      <label class="checkbox_label">
-        <input id="wof-trigger-enabled" type="checkbox">
-        <span>Allow text trigger</span>
-      </label>
-      <label for="wof-trigger-token">Trigger word / token</label>
-      <input id="wof-trigger-token" class="text_pole" type="text" placeholder="[[SPIN_WHEEL]]">
-      <label class="checkbox_label">
-        <input id="wof-trigger-user" type="checkbox">
-        <span>User messages may trigger it too</span>
-      </label>
-      <label class="checkbox_label">
-        <input id="wof-character-hint" type="checkbox">
-        <span>Tell the character how to trigger the wheel</span>
-      </label>
-      <p class="wof-muted">When a character outputs the configured token, the same large animated wheel opens on screen and spins automatically.</p>
-
-      <hr>
-      <h4>👁️ Result behavior</h4>
-      <label for="wof-result-mode">After the wheel lands</label>
-      <select id="wof-result-mode" class="text_pole">
-        <option value="system">Post result to chat as a system message</option>
-        <option value="prompt">Inject result silently into the next generation</option>
-        <option value="private">Keep result private (UI only)</option>
+      <h4>🎭 Visibility / secrecy</h4>
+      <label for="wof-visibility-mode">What may the user see?</label>
+      <select id="wof-visibility-mode" class="text_pole">
+        <option value="full">Full — wheel choices + selected result visible</option>
+        <option value="hidden-wheel">Mystery wheel — choices hidden, selected result visible</option>
+        <option value="hidden-result">Secret result — choices visible, selected result hidden</option>
+        <option value="blind">Blind — choices hidden and selected result hidden</option>
       </select>
-      <label class="checkbox_label">
-        <input id="wof-hidden-spin" type="checkbox">
-        <span>Hidden spin — hide segment labels until the result is revealed</span>
-      </label>
-      <label class="checkbox_label">
-        <input id="wof-auto-close" type="checkbox">
-        <span>Close wheel automatically after result</span>
-      </label>
+      <p class="wof-muted">Secret-result and Blind mode never reveal the selected forfeit through the UI, history list, toast, or a visible system message.</p>
+
+      <label for="wof-result-mode">Normal result delivery</label>
+      <select id="wof-result-mode" class="text_pole">
+        <option value="system">Post visible system message</option>
+        <option value="prompt">Inject silently into next generation</option>
+        <option value="private">UI only</option>
+      </select>
+      <label class="checkbox_label"><input id="wof-secret-to-character" type="checkbox"><span>When result is hidden, silently tell the character/AI what was selected</span></label>
+      <label class="checkbox_label"><input id="wof-auto-close" type="checkbox"><span>Close wheel automatically after result</span></label>
+
+      <hr>
+      <h4>⏳ Suspense</h4>
+      <label for="wof-spin-seconds">Spin duration (seconds)</label>
+      <input id="wof-spin-seconds" class="text_pole" type="number" min="4" max="30" step="0.5">
+      <label for="wof-reveal-delay">Pause after wheel stops before revealing result (seconds)</label>
+      <input id="wof-reveal-delay" class="text_pole" type="number" min="0" max="5" step="0.1">
+      <p class="wof-muted">The default spin is intentionally longer and makes 11–16 full turns before landing.</p>
+
+      <hr>
+      <h4>🤖 Character trigger</h4>
+      <label class="checkbox_label"><input id="wof-trigger-enabled" type="checkbox"><span>Allow text trigger</span></label>
+      <label for="wof-trigger-token">Simple trigger word / token</label>
+      <input id="wof-trigger-token" class="text_pole" type="text" placeholder="[[SPIN_WHEEL]]">
+      <label class="checkbox_label"><input id="wof-trigger-user" type="checkbox"><span>User messages may trigger it too</span></label>
+      <label class="checkbox_label"><input id="wof-character-hint" type="checkbox"><span>Tell the character how to trigger the wheel and use advanced options</span></label>
+      <div class="wof-code-help">
+        <code>[[SPIN_WHEEL]]</code><br>
+        <code>[[SPIN_WHEEL mode=hidden-wheel]]</code><br>
+        <code>[[SPIN_WHEEL mode=hidden-result]]</code><br>
+        <code>[[SPIN_WHEEL mode=blind level=4 seconds=12]]</code>
+      </div>
+
+      <hr>
+      <h4>📈 Adaptive intensity</h4>
+      <label class="checkbox_label"><input id="wof-adaptive-enabled" type="checkbox"><span>Enable per-chat adaptive levels</span></label>
+      <div id="wof-adaptive-options">
+        <label for="wof-default-level">Default / starting level</label>
+        <input id="wof-default-level" class="text_pole" type="number" min="1" max="10" step="1">
+        <label for="wof-max-level">Maximum level</label>
+        <input id="wof-max-level" class="text_pole" type="number" min="1" max="10" step="1">
+        <label for="wof-auto-level-every">Automatically increase one level every N completed spins (0 = disabled)</label>
+        <input id="wof-auto-level-every" class="text_pole" type="number" min="0" max="50" step="1">
+
+        <div class="wof-progress-card">
+          <b id="wof-progress-label">Level 1 · 0 completed spins</b>
+          <div class="wof-row">
+            <button id="wof-level-down" class="menu_button">− Level</button>
+            <input id="wof-current-level" class="text_pole wof-level-input" type="number" min="1" max="10" step="1">
+            <button id="wof-level-up" class="menu_button">＋ Level</button>
+            <button id="wof-reset-progress" class="menu_button">Reset this chat</button>
+          </div>
+        </div>
+        <p class="wof-muted">Forfeits outside the current level range are automatically removed from the active wheel. Progress and cooldowns are tracked separately for each chat.</p>
+      </div>
 
       <hr>
       <h4>📚 Forfeit source</h4>
@@ -118,35 +133,28 @@
           <option value="tagged">Only entries marked [WHEEL]</option>
           <option value="all">All enabled entries</option>
         </select>
-        <p class="wof-muted">Optional metadata in the Lorebook entry title/comment: <code>[WHEEL]</code>, <code>[weight=3]</code>, <code>[once]</code>.</p>
+        <p class="wof-muted">Metadata: <code>[WHEEL]</code>, <code>[weight=3]</code>, <code>[min=2]</code>, <code>[max=4]</code>, <code>[level=3]</code>, <code>[cooldown=2]</code>, <code>[once]</code>.</p>
         <button id="wof-refresh-lorebooks" class="menu_button">↻ Refresh Lorebooks</button>
       </div>
 
       <div id="wof-manual-options">
-        <div class="wof-row wof-between">
-          <b>Manual wheel entries</b>
-          <button id="wof-add-entry" class="menu_button">＋ Add</button>
-        </div>
-        <p class="wof-muted">Edit the label, probability weight, one-shot behavior, and the instruction delivered when that segment wins.</p>
+        <div class="wof-row wof-between"><b>Manual wheel entries</b><button id="wof-add-entry" class="menu_button">＋ Add</button></div>
+        <p class="wof-muted"><b>Columns:</b> title · weight · min level · max level · cooldown (spins) · one-shot · delete.</p>
         <div id="wof-entry-list"></div>
       </div>
 
       <hr>
       <h4>⚙️ Advanced</h4>
-      <label class="checkbox_label">
-        <input id="wof-remove-once" type="checkbox">
-        <span>Honor “remove after selected” entries</span>
-      </label>
-      <label for="wof-spin-seconds">Spin duration (seconds)</label>
-      <input id="wof-spin-seconds" class="text_pole" type="number" min="2" max="15" step="0.5">
-      <div class="wof-row">
-        <button id="wof-reset" class="menu_button">Reset defaults</button>
-      </div>
+      <label class="checkbox_label"><input id="wof-remove-once" type="checkbox"><span>Honor permanently removed “once” entries</span></label>
+      <div class="wof-row"><button id="wof-reset" class="menu_button">Reset all defaults</button></div>
 
       <div class="wof-help">
-        <b>Visual wheel:</b> click the floating 🎡 button, <b>Open visual wheel</b>, or use <code>/wheel-open</code>.<br>
-        <b>Spin:</b> <code>/wheel</code>, <code>/wheel hidden=true</code>, <code>/wheel mode=private</code>.<br>
-        <b>Aliases:</b> <code>/wof</code> and <code>/spinwheel</code>.
+        <b>Normal:</b> <code>/wheel</code><br>
+        <b>Mystery wheel:</b> <code>/wheel visibility=hidden-wheel</code><br>
+        <b>Secret result:</b> <code>/wheel visibility=hidden-result</code><br>
+        <b>Blind:</b> <code>/wheel visibility=blind level=4 seconds=12</code><br>
+        <b>Set chat level:</b> <code>/wheel-level level=3</code><br>
+        <b>Open only:</b> <code>/wheel-open</code>
       </div>
     </div>
   </div>
