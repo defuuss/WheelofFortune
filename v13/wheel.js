@@ -1,9 +1,12 @@
 import {
     PROMPT_KEY, advanceProgress, clampNumber, clampWeight, esc, extension_prompt_types,
-    getActiveLevel, getContext, getState, hideResultFor, hideWheelFor, markRemoved,
-    normalizeVisibility, persist, sourceLabel,
+    getActiveLevel, getActivePresetName, getContext, getState, hideResultFor, hideWheelFor,
+    markRemoved, normalizeVisibility, persist, selectPreset, sourceLabel,
 } from './state.js';
 import { resolveEntries } from './lorebook.js';
+import {
+    playResultSound, playSpinStart, startSpinHum, trackPointerTicks, unlockAudio,
+} from './audio.js';
 
 let overlay = null;
 let canvas = null;
@@ -144,6 +147,16 @@ function weightedPick(entries) {
     return { entry: entries.at(-1), index: entries.length - 1 };
 }
 
+function activateRequestedPreset(options = {}) {
+    if (!options.preset) return true;
+    const preset = selectPreset(options.preset);
+    if (!preset) {
+        toastr.error(`Wheel preset “${options.preset}” does not exist.`, 'Wheel of Fortune');
+        return false;
+    }
+    return true;
+}
+
 export function buildOverlay() {
     if (document.getElementById('wof-overlay')) {
         overlay = document.getElementById('wof-overlay');
@@ -202,10 +215,15 @@ export function syncFloatingButton() {
 function renderHistory() {
     const host = document.getElementById('wof-history-list');
     if (!host) return;
-    host.innerHTML = getState().history.slice(0, 10).map(h => `<div class="wof-history-item"><span>${h.secret ? '🤫 Hidden result' : esc(h.title)}</span><span>${esc(h.time)}</span></div>`).join('') || '<div>No spins yet.</div>';
+    host.innerHTML = getState().history.slice(0, 10).map(h => {
+        const title = h.secret ? '🤫 Hidden result' : esc(h.title);
+        const preset = h.preset ? `<b>${esc(h.preset)}</b> · ` : '';
+        return `<div class="wof-history-item"><span>${preset}${title}</span><span>${esc(h.time)}</span></div>`;
+    }).join('') || '<div>No spins yet.</div>';
 }
 
 export async function openWheel(options = {}) {
+    if (!activateRequestedPreset(options)) return false;
     const s = getState();
     buildOverlay();
     applyAppearance();
@@ -254,12 +272,12 @@ async function deliverResult(entry, requestedMode, visibility) {
     if (secret) mode = s.secretResultToCharacter ? 'prompt' : 'private';
 
     if (mode === 'system') {
-        c.sendSystemMessage('generic', `🎡 ${s.wheelTitle || 'Wheel of Fortune'} — ${entry.title}${entry.description ? `\n${entry.description}` : ''}`, { wof_result: true });
+        c.sendSystemMessage('generic', `🎡 ${s.wheelTitle || 'Wheel of Fortune'} — ${entry.title}${entry.description ? `\n${entry.description}` : ''}`, { wof_result: true, wof_preset: getActivePresetName() });
         await c.saveChat?.();
     } else if (mode === 'prompt') {
         c.setExtensionPrompt(
             PROMPT_KEY,
-            `A Wheel of Fortune spin selected the following authoritative roleplay forfeit. The user may not be allowed to see the result. Incorporate it naturally and never reveal hidden wheel information unless explicitly permitted:\n\n${entry.title}\n${entry.description}`,
+            `A Wheel of Fortune spin from preset "${getActivePresetName()}" selected the following authoritative roleplay forfeit. The user may not be allowed to see the result. Incorporate it naturally and never reveal hidden wheel information unless explicitly permitted:\n\n${entry.title}\n${entry.description}`,
             extension_prompt_types.IN_CHAT,
             0,
         );
@@ -273,10 +291,11 @@ async function deliverResult(entry, requestedMode, visibility) {
 
 export async function spinWheel(options = {}) {
     if (spinning) return '';
+    if (!activateRequestedPreset(options)) return '';
     const s = getState();
     const visibility = normalizeVisibility(options.visibility ?? (options.hidden === true ? 'hidden-wheel' : s.visibilityMode));
     const level = getActiveLevel(options.level);
-    const opened = overlay?.classList.contains('wof-open') || await openWheel({ ...options, visibility, level });
+    const opened = overlay?.classList.contains('wof-open') || await openWheel({ ...options, preset: undefined, visibility, level });
     if (!opened) return '';
 
     currentEntries = await resolveEntries({ level });
@@ -295,9 +314,17 @@ export async function spinWheel(options = {}) {
     const { entry, index } = weightedPick(currentEntries);
     currentRotation = calculateRotation(currentEntries, index);
     const seconds = clampNumber(options.seconds ?? s.spinSeconds, 4, 30, 10.5);
+
+    await unlockAudio();
+    playSpinStart();
+    const stopHum = startSpinHum(seconds);
+    const stopTicks = trackPointerTicks(canvas, currentEntries, seconds);
+
     canvas.style.transition = `transform ${seconds}s cubic-bezier(.06,.68,.05,1)`;
     requestAnimationFrame(() => { canvas.style.transform = `rotate(${currentRotation}deg)`; });
     await new Promise(resolve => setTimeout(resolve, seconds * 1000 + 100));
+    stopTicks();
+    stopHum();
 
     suspense?.classList.add('wof-show');
     const revealDelay = clampNumber(options.revealDelay ?? s.revealDelay, 0, 5, 1.4);
@@ -307,6 +334,7 @@ export async function spinWheel(options = {}) {
     center?.classList.remove('wof-disabled');
 
     const secret = hideResultFor(visibility);
+    playResultSound({ secret });
     const title = document.getElementById('wof-result-title');
     const body = document.getElementById('wof-result-body');
     if (secret) {
@@ -319,7 +347,7 @@ export async function spinWheel(options = {}) {
     }
     resultBox?.classList.add('wof-show');
 
-    s.history.unshift({ title: entry.title, time: new Date().toLocaleString(), source: s.source, level, secret });
+    s.history.unshift({ title: entry.title, time: new Date().toLocaleString(), source: s.source, preset: getActivePresetName(), level, secret });
     s.history = s.history.slice(0, 30);
     if (s.removeOnce && entry.once) markRemoved(entry.sourceId);
     advanceProgress(entry);

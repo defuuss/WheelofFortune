@@ -1,10 +1,10 @@
 import {
-    clampNumber, clampWeight, esc, getActiveLevel, getCooldownMap, getProgress, getRemovedIds,
-    getState, isRemoved, normalizeEntry, getContext,
+    clampNumber, clampWeight, esc, getActiveLevel, getActivePresetName, getCooldownMap,
+    getPresets, getProgress, getRemovedIds, getState, isRemoved, normalizeEntry, getContext,
 } from './state.js';
 
 const STABLE_ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
-const META_TAG_RE = /\[(wheel|once|id|weight|level|min|max|minlevel|maxlevel|cooldown)(?:\s*=\s*([^\]]+))?\]/gi;
+const META_TAG_RE = /\[(wheel|once|id|weight|level|min|max|minlevel|maxlevel|cooldown|preset)(?:\s*=\s*([^\]]+))?\]/gi;
 
 function entryKeys(entry) {
     if (Array.isArray(entry?.key)) return entry.key;
@@ -49,6 +49,18 @@ function parseStrictNumber(raw, { integer = false, min = -Infinity, max = Infini
     return { present: true, value: n, valid: true };
 }
 
+function cleanMetaString(raw) {
+    return String(raw ?? '').trim().replace(/^(?:"|')|(?:"|')$/g, '').trim();
+}
+
+function parsePresetNames(values = []) {
+    return [...new Set(values
+        .filter(v => v !== true && v !== undefined && v !== null)
+        .flatMap(v => cleanMetaString(v).split(','))
+        .map(cleanMetaString)
+        .filter(Boolean))];
+}
+
 function stripMetaTitle(text) {
     return String(text || '').replace(META_TAG_RE, '').replace(/\s{2,}/g, ' ').trim();
 }
@@ -60,12 +72,14 @@ function normalizeRawEntry(raw, sourceName) {
     const tagged = meta.has('wheel');
     const idRaw = meta.first('id');
     const stableId = idRaw && idRaw !== true ? String(idRaw).trim() : '';
+    const presetNames = parsePresetNames(meta.tags.preset || []);
 
     if (idRaw === true || (stableId && !STABLE_ID_RE.test(stableId))) {
         add('error', '[id=...] must be 1–64 characters using letters, numbers, _, ., :, or -.');
     }
     if (meta.tags.wheel?.some(v => v !== true)) add('warning', '[WHEEL] is a flag and should not have a value.');
     if (meta.tags.once?.some(v => v !== true)) add('warning', '[once] is a flag and should not have a value.');
+    if (meta.tags.preset?.some(v => v === true || !cleanMetaString(v))) add('error', '[preset=...] requires a preset name.');
     for (const name of ['id', 'weight', 'level', 'min', 'max', 'minlevel', 'maxlevel', 'cooldown']) {
         if ((meta.tags[name]?.length || 0) > 1) add('error', `Metadata [${name}=...] is defined more than once.`);
     }
@@ -114,6 +128,7 @@ function normalizeRawEntry(raw, sourceName) {
             maxLevel,
             cooldown: meta.has('once') ? 0 : (cooldownN.valid && cooldownN.present ? cooldownN.value : 0),
             tagged,
+            presetNames,
             rawHaystack: meta.haystack,
             validationIssues: issues,
         }),
@@ -127,9 +142,17 @@ function validateParsedEntries(parsed, { requireTagged = true } = {}) {
     const relevant = parsed.filter(x => !requireTagged || x.entry.tagged);
     const explicit = new Map();
     const identities = new Map();
+    const knownPresets = getPresets();
+    const knownNames = new Set(knownPresets.flatMap(p => [p.name.toLowerCase(), p.id.toLowerCase()]));
 
     for (const item of relevant) {
         for (const issue of item.issues) issues.push({ ...issue, title: item.entry.title, id: item.entry.stableId || item.entry.sourceId });
+        for (const presetName of item.entry.presetNames || []) {
+            const p = presetName.toLowerCase();
+            if (p !== '*' && p !== 'all' && !knownNames.has(p)) {
+                issues.push({ severity: 'warning', title: item.entry.title, id: item.entry.stableId || item.entry.sourceId, message: `Unknown wheel preset “${presetName}”. This entry will stay inactive until that preset exists.` });
+            }
+        }
         const identityKey = String(item.entry.sourceId || '').toLowerCase();
         if (!identities.has(identityKey)) identities.set(identityKey, []);
         identities.get(identityKey).push(item);
@@ -181,10 +204,21 @@ export async function getRawSourceEntries() {
     return { sourceName: 'manual', displayName: 'Manual entries', rawEntries: [] };
 }
 
+function matchesActivePreset(entry) {
+    const names = Array.isArray(entry?.presetNames) ? entry.presetNames : [];
+    if (!names.length) return true;
+    const activeName = getActivePresetName().toLowerCase();
+    const activeId = String(getState().activePresetId || '').toLowerCase();
+    return names.some(name => {
+        const value = String(name).trim().toLowerCase();
+        return value === '*' || value === 'all' || value === activeName || value === activeId;
+    });
+}
+
 export async function loadParsedSource({ validateAll = false } = {}) {
     const s = getState();
     if (s.source === 'manual') {
-        const entries = s.entries.filter(e => e?.title).map(e => ({ entry: { ...normalizeEntry(e), sourceId: e.id }, issues: [], tagged: true }));
+        const entries = s.entries.filter(e => e?.title).map(e => ({ entry: { ...normalizeEntry(e), sourceId: e.id, presetNames: [] }, issues: [], tagged: true }));
         return { displayName: 'Manual entries', entries, issues: [] };
     }
 
@@ -195,7 +229,7 @@ export async function loadParsedSource({ validateAll = false } = {}) {
         const { relevant, issues } = validateParsedEntries(parsed, { requireTagged });
 
         if (validateAll && requireTagged) {
-            for (const item of parsed.filter(x => !x.entry.tagged && /\[(?:weight|level|min|max|cooldown|once|id)\b/i.test(x.entry.rawHaystack || ''))) {
+            for (const item of parsed.filter(x => !x.entry.tagged && /\[(?:weight|level|min|max|cooldown|once|id|preset)\b/i.test(x.entry.rawHaystack || ''))) {
                 issues.push({ severity: 'warning', title: item.entry.title, id: item.entry.sourceId, message: 'Wheel metadata found but [WHEEL] is missing, so tagged-only mode ignores this entry.' });
             }
         }
@@ -215,7 +249,7 @@ export async function resolveEntries(options = {}) {
     const parsed = await loadParsedSource();
     const base = parsed.entries
         .map(x => x.entry)
-        .filter(e => !hasValidationError(e) && !isRemoved(e.sourceId) && inLevel(e, level));
+        .filter(e => matchesActivePreset(e) && !hasValidationError(e) && !isRemoved(e.sourceId) && inLevel(e, level));
 
     if (!base.length) return [];
     const spins = getProgress().spins;
@@ -233,14 +267,18 @@ export async function resolveEntries(options = {}) {
 export async function validateCurrentSource(showToast = true) {
     const s = getState();
     const parsed = await loadParsedSource({ validateAll: true });
-    const entries = parsed.entries.map(x => x.entry);
+    const entries = parsed.entries.map(x => x.entry).filter(matchesActivePreset);
     const issues = [...parsed.issues];
+    const presetName = getActivePresetName();
 
     if (s.source !== 'manual' && s.lorebookMode === 'all') {
         issues.push({ severity: 'warning', title: parsed.displayName, message: 'Import mode is “All enabled entries”. Tagged-only mode is safer because unrelated Lorebook entries cannot become wheel segments.' });
     }
     if (entries.length && !entries.some(e => e.stableId)) {
-        issues.push({ severity: 'warning', title: parsed.displayName, message: 'No entry uses an explicit [id=...]. Native IDs work, but stable IDs are recommended for portable/shared wheel packs.' });
+        issues.push({ severity: 'warning', title: parsed.displayName, message: 'No active entry uses an explicit [id=...]. Native IDs work, but stable IDs are recommended for portable/shared wheel packs.' });
+    }
+    if (!entries.length && s.source !== 'manual') {
+        issues.push({ severity: 'error', title: presetName, message: `No Lorebook entries are shared or routed to preset “${presetName}”.` });
     }
 
     const levelRows = [];
@@ -250,11 +288,11 @@ export async function validateCurrentSource(showToast = true) {
         const cooldown = configured.filter(e => !e.once && e.cooldown > 0).length;
         const once = configured.filter(e => e.once).length;
         levelRows.push({ level, total: configured.length, repeatable, cooldown, once });
-        if (!configured.length) issues.push({ severity: 'error', title: `Level ${level}`, message: 'No valid forfeits are configured for this level.' });
-        else if (!repeatable) issues.push({ severity: 'warning', title: `Level ${level}`, message: 'No always-repeatable baseline entry. Cooldown safety prevents a lock, but 2–3 repeatable entries are recommended.' });
+        if (!configured.length) issues.push({ severity: 'error', title: `${presetName} · Level ${level}`, message: 'No valid forfeits are configured for this level.' });
+        else if (!repeatable) issues.push({ severity: 'warning', title: `${presetName} · Level ${level}`, message: 'No always-repeatable baseline entry. Cooldown safety prevents a lock, but 2–3 repeatable entries are recommended.' });
     }
 
-    const report = { displayName: parsed.displayName, issues, levelRows, count: entries.length };
+    const report = { displayName: `${parsed.displayName} · preset ${presetName}`, issues, levelRows, count: entries.length };
     renderValidationReport(report);
 
     if (showToast) {
@@ -262,7 +300,7 @@ export async function validateCurrentSource(showToast = true) {
         const warnings = issues.filter(i => i.severity === 'warning').length;
         if (errors) toastr.error(`${errors} error(s), ${warnings} warning(s). See the Wheel validator.`, 'Wheel Lorebook');
         else if (warnings) toastr.warning(`No errors; ${warnings} warning(s). See the Wheel validator.`, 'Wheel Lorebook');
-        else toastr.success(`${entries.length} wheel entries validated successfully.`, 'Wheel Lorebook');
+        else toastr.success(`${entries.length} wheel entries validated successfully for “${presetName}”.`, 'Wheel Lorebook');
     }
     return report;
 }

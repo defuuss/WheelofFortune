@@ -2,10 +2,12 @@ import { SlashCommandParser } from '../../../../slash-commands/SlashCommandParse
 import { SlashCommand } from '../../../../slash-commands/SlashCommand.js';
 import { ARGUMENT_TYPE, SlashCommandNamedArgument } from '../../../../slash-commands/SlashCommandArgument.js';
 import {
-    EXTENDED_TRIGGER_RE, ensureSettings, eventSource, event_types, getContext, getProgress,
-    getState, normalizeVisibility, renderProgressUi, setCurrentLevel, updateCharacterHint,
+    EXTENDED_TRIGGER_RE, ensureSettings, eventSource, event_types, getActivePresetName, getContext,
+    getPresets, getProgress, getState, normalizeVisibility, renderProgressUi, selectPreset,
+    setCurrentLevel, updateCharacterHint,
 } from './state.js';
 import { validateCurrentSource } from './lorebook.js';
+import { installAudioUnlock } from './audio.js';
 import { bindSettingsUi } from './settings.js';
 import { buildOverlay, clearInjectedPrompt, isSpinning, openWheel, spinWheel, syncFloatingButton } from './wheel.js';
 
@@ -24,6 +26,7 @@ function parseControlOptions(text) {
         if (key === 'level') options.level = Number(value);
         if (['seconds', 'duration'].includes(key)) options.seconds = Number(value);
         if (['result', 'delivery'].includes(key)) options.result = String(value).toLowerCase();
+        if (['preset', 'wheel'].includes(key)) options.preset = String(value);
     }
     return options;
 }
@@ -59,12 +62,14 @@ function registerCommands() {
         name: 'wheel',
         aliases: ['spinwheel', 'wof'],
         callback: async args => spinWheel({
+            preset: args.preset,
             visibility: args.visibility || args.mode || (String(args.hidden).toLowerCase() === 'true' ? 'hidden-wheel' : undefined),
             level: args.level,
             seconds: args.seconds,
             result: args.result,
         }),
         namedArgumentList: [
+            SlashCommandNamedArgument.fromProps({ name: 'preset', description: 'Named wheel preset to use for this spin', typeList: [ARGUMENT_TYPE.STRING] }),
             SlashCommandNamedArgument.fromProps({ name: 'visibility', description: 'full, hidden-wheel, hidden-result, or blind', typeList: [ARGUMENT_TYPE.STRING] }),
             SlashCommandNamedArgument.fromProps({ name: 'mode', description: 'Alias for visibility', typeList: [ARGUMENT_TYPE.STRING] }),
             SlashCommandNamedArgument.fromProps({ name: 'hidden', description: 'Legacy hide-wheel flag', typeList: [ARGUMENT_TYPE.BOOLEAN] }),
@@ -73,18 +78,19 @@ function registerCommands() {
             SlashCommandNamedArgument.fromProps({ name: 'result', description: 'system, prompt, or private delivery', typeList: [ARGUMENT_TYPE.STRING] }),
         ],
         returns: 'selected forfeit title, or [hidden result]',
-        helpString: '<div>Spin the visual wheel. Example: <code>/wheel visibility=blind level=4 seconds=12</code>.</div>',
+        helpString: '<div>Spin the visual wheel. Examples: <code>/wheel preset="Secrets"</code> or <code>/wheel preset="Consequences" visibility=blind level=4 seconds=12</code>.</div>',
     }));
 
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
         name: 'wheel-open',
         aliases: ['wof-open'],
-        callback: async args => { await openWheel({ visibility: args.visibility, level: args.level }); return ''; },
+        callback: async args => { await openWheel({ preset: args.preset, visibility: args.visibility, level: args.level }); return ''; },
         namedArgumentList: [
+            SlashCommandNamedArgument.fromProps({ name: 'preset', description: 'Named wheel preset to open', typeList: [ARGUMENT_TYPE.STRING] }),
             SlashCommandNamedArgument.fromProps({ name: 'visibility', description: 'Visibility mode', typeList: [ARGUMENT_TYPE.STRING] }),
             SlashCommandNamedArgument.fromProps({ name: 'level', description: 'Preview intensity level', typeList: [ARGUMENT_TYPE.NUMBER] }),
         ],
-        helpString: 'Open the animated wheel without spinning.',
+        helpString: 'Open a named animated wheel without spinning.',
     }));
 
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
@@ -94,9 +100,33 @@ function registerCommands() {
             return String(getProgress().level);
         },
         namedArgumentList: [
-            SlashCommandNamedArgument.fromProps({ name: 'level', description: 'Set current chat wheel level', typeList: [ARGUMENT_TYPE.NUMBER] }),
+            SlashCommandNamedArgument.fromProps({ name: 'level', description: 'Set current chat/preset wheel level', typeList: [ARGUMENT_TYPE.NUMBER] }),
         ],
-        helpString: '<div>Get or set the current chat wheel level. Example: <code>/wheel-level level=3</code>.</div>',
+        helpString: '<div>Get or set the current active preset level. Example: <code>/wheel-level level=3</code>.</div>',
+    }));
+
+    SlashCommandParser.addCommandObject(SlashCommand.fromProps({
+        name: 'wheel-preset',
+        callback: async args => {
+            if (args.preset !== undefined && String(args.preset).trim()) {
+                const preset = selectPreset(args.preset);
+                if (!preset) {
+                    toastr.error(`Wheel preset “${args.preset}” does not exist.`, 'Wheel of Fortune');
+                    return '';
+                }
+            }
+            return getActivePresetName();
+        },
+        namedArgumentList: [
+            SlashCommandNamedArgument.fromProps({ name: 'preset', description: 'Preset name or ID to activate', typeList: [ARGUMENT_TYPE.STRING] }),
+        ],
+        helpString: '<div>Get or select the active wheel preset. Example: <code>/wheel-preset preset="Secrets"</code>.</div>',
+    }));
+
+    SlashCommandParser.addCommandObject(SlashCommand.fromProps({
+        name: 'wheel-presets',
+        callback: async () => getPresets().map(p => p.name).join(', '),
+        helpString: 'List all configured Wheel of Fortune presets.',
     }));
 
     SlashCommandParser.addCommandObject(SlashCommand.fromProps({
@@ -107,11 +137,11 @@ function registerCommands() {
             const warnings = report.issues.filter(i => i.severity === 'warning').length;
             return `${errors} errors, ${warnings} warnings`;
         },
-        helpString: 'Validate the current external or character Lorebook and preview level coverage.',
+        helpString: 'Validate the active preset source and preview level coverage.',
     }));
 
     commandsRegistered = true;
-    console.info('[Wheel of Fortune] Slash commands registered: /wheel, /wheel-open, /wheel-level, /wheel-validate');
+    console.info('[Wheel of Fortune] Slash commands registered: /wheel, /wheel-open, /wheel-level, /wheel-preset, /wheel-presets, /wheel-validate');
 }
 
 try { registerCommands(); }
@@ -120,6 +150,7 @@ catch (error) { console.error('[Wheel of Fortune] Early command registration fai
 jQuery(async () => {
     try {
         ensureSettings();
+        installAudioUnlock();
         buildOverlay();
         syncFloatingButton();
         updateCharacterHint();
@@ -141,7 +172,7 @@ jQuery(async () => {
             updateCharacterHint();
         });
 
-        console.info('[Wheel of Fortune] Extension v1.3 loaded');
+        console.info('[Wheel of Fortune] Extension v1.4 loaded');
     } catch (error) {
         console.error('[Wheel of Fortune] Fatal initialization error', error);
         toastr.error('Wheel of Fortune failed to initialize.', 'Wheel of Fortune');

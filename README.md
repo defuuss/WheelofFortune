@@ -2,39 +2,76 @@
 
 A cinematic, animated **Wheel of Fortune / Wheel of Forfeits** extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern).
 
-Built for roleplay: spin manually, call it from STscript, let the character intentionally launch it from dialogue, or populate the wheel from a standalone Lorebook **or directly from the active character card's embedded Character Lorebook**.
+Built for roleplay: spin manually, call it from STscript, let the character intentionally launch it from dialogue, or populate wheels from standalone Lorebooks or a character card's embedded Character Lorebook.
 
 ## ✨ Highlights
 
-- 🎡 Large animated on-screen weighted wheel.
-- ⏳ Long suspense spins with **11–16 rotations** plus a configurable post-stop reveal pause.
-- 💥 Large dramatic result reveal.
-- 🎭 Four visibility modes: **Full**, **Mystery wheel**, **Secret result**, and **Blind**.
-- 🤫 Hidden-result modes mask the result from the UI, history, pointer, toast and visible system output while optionally telling the character/AI privately.
-- ⚖️ Weighted forfeits.
-- 🔁 Per-entry cooldowns.
-- 1️⃣ Per-chat one-shot forfeits.
-- 📈 Adaptive intensity levels stored independently per chat.
+- 🎡 Large animated weighted wheel with long suspense spins and dramatic result reveal.
+- 🎛️ **Multiple named wheel presets** with independent entries/source, appearance, visibility, adaptive levels, timing and audio.
+- 🔊 **Pointer ticks and sound effects** generated locally with the Web Audio API — no external MP3 files.
+- 🎭 Four visibility modes: Full, Mystery wheel, Secret result and Blind.
+- 🤫 Hidden-result modes can privately inform the character/AI without revealing the result to the user.
+- ⚖️ Weighted forfeits, cooldowns and one-shot entries.
+- 📈 Adaptive intensity levels.
 - 📚 Standalone Lorebook / World Info source.
-- 🪪 **Active character card Lorebook / Character Book source** — wheel packs can travel with character cards.
+- 🪪 Active character card Lorebook / Character Book source.
 - 🆔 Stable Lorebook IDs using `[id=...]`.
-- 🛡️ Built-in Lorebook validator and level preview.
-- 🔒 Invalid wheel entries are excluded instead of silently repaired.
+- 🧭 **Lorebook preset routing** using `[preset=Name]`.
+- 🛡️ Lorebook validator, duplicate-ID detection and level coverage preview.
 - 🧯 Cooldown deadlock protection.
-- 🤖 Character-triggered spins with visibility, level and duration options.
-- 🎨 Themes, custom colors, wheel size, pointer, direction, probability labels and floating launcher.
+- 🤖 Character-triggered spins with preset, visibility, level and duration controls.
+- 🎨 Themes, colors, wheel size, pointer, direction and probability labels.
 - 📱 Responsive desktop/mobile UI.
-- 💾 No external server or third-party JavaScript library required.
 
 ## 📦 Installation
 
-In SillyTavern install the extension from:
+Install from SillyTavern's extension installer:
 
 ```text
 https://github.com/defuuss/WheelofFortune
 ```
 
 Then reload SillyTavern and open **Extensions → Wheel of Fortune**.
+
+## 🎛️ Named presets — v1.4
+
+Each named preset is a complete wheel configuration. For example:
+
+- General
+- Truths
+- Dares
+- Secrets
+- Consequences
+- Chaos
+
+A preset stores its own:
+
+- manual entries or Lorebook source;
+- appearance/colors/title;
+- visibility mode;
+- spin and reveal timing;
+- adaptive-level settings;
+- audio configuration.
+
+Cooldowns, one-shot removals, level and spin count are isolated by **preset + chat**.
+
+Use the preset manager in the extension settings to create, clone, rename, select or delete wheels.
+
+## 🔊 Audio — v1.4
+
+Optional sound features include:
+
+- spin-start sound;
+- subtle wheel hum;
+- pointer ticks synchronized to the actual wheel rotation;
+- naturally slowing tick cadence as the wheel decelerates;
+- result/reveal sound;
+- subdued secret-result sound;
+- master volume and tick volume;
+- Classic, Soft and Wooden tick styles;
+- Test Sound button.
+
+All audio is generated in-browser with the Web Audio API.
 
 ## 🎮 Commands
 
@@ -45,37 +82,37 @@ Then reload SillyTavern and open **Extensions → Wheel of Fortune**.
 /spinwheel
 ```
 
-Mystery wheel:
+Spin a named preset:
 
 ```text
-/wheel visibility=hidden-wheel
+/wheel preset="Secrets"
 ```
 
-Secret result:
+Blind named spin:
 
 ```text
-/wheel visibility=hidden-result
+/wheel preset="Consequences" visibility=blind level=4 seconds=12
 ```
 
-Completely blind:
+Select a preset without spinning:
 
 ```text
-/wheel visibility=blind
+/wheel-preset preset="Secrets"
 ```
 
-One stronger, longer blind spin:
+List presets:
 
 ```text
-/wheel visibility=blind level=4 seconds=12
+/wheel-presets
 ```
 
-Set the persistent level for the current chat:
+Set the active preset's current chat level:
 
 ```text
 /wheel-level level=3
 ```
 
-Validate the current wheel source:
+Validate the active preset source:
 
 ```text
 /wheel-validate
@@ -87,18 +124,17 @@ The active character can deliberately output:
 
 ```text
 [[SPIN_WHEEL]]
-[[SPIN_WHEEL mode=hidden-wheel]]
-[[SPIN_WHEEL mode=hidden-result]]
-[[SPIN_WHEEL mode=blind]]
-[[SPIN_WHEEL level=3]]
-[[SPIN_WHEEL mode=blind level=4 seconds=12]]
+[[SPIN_WHEEL preset="Secrets"]]
+[[SPIN_WHEEL preset="Secrets" mode=hidden-wheel]]
+[[SPIN_WHEEL preset="Consequences" mode=hidden-result]]
+[[SPIN_WHEEL preset="Chaos" mode=blind level=4 seconds=12]]
 ```
 
-The extension can inject a compact instruction explaining these controls to the character. Trigger tokens are treated as control commands rather than ordinary dialogue.
+When the character hint is enabled, the extension tells the model the actual configured preset names and instructs it not to invent or casually quote control tokens.
 
-For an AI that is creating/editing a SillyTavern card, use **[docs/CARD_INTEGRATION_PROMPT.md](docs/CARD_INTEGRATION_PROMPT.md)**. It now teaches the AI both the trigger behavior **and how to build the character's embedded Wheel Lorebook correctly**.
+See **[docs/CARD_INTEGRATION_PROMPT.md](docs/CARD_INTEGRATION_PROMPT.md)** for a ready-made prompt that teaches another AI how to integrate the wheel into a character card and build its Character Lorebook correctly.
 
-## 📚 Official v1.3 Lorebook format
+## 📚 Lorebook format
 
 One Lorebook entry equals one wheel segment.
 
@@ -108,18 +144,27 @@ Put metadata in **Comment / Title**:
 [WHEEL] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
 ```
 
-Put only the detailed roleplay instruction in **Content**.
+Put only the roleplay instruction in **Content**.
 
-Exact-level one-shot example:
+Route an entry to one preset:
 
 ```text
-[WHEEL] [id=plot_01] [weight=1] [level=5] [once] Major turning point
+[WHEEL] [preset=Secrets] [id=secret_01] [weight=3] Reveal a secret
 ```
+
+Route one entry to multiple presets:
+
+```text
+[WHEEL] [preset=Secrets,Truths] [id=confession_01] [weight=2] Confession
+```
+
+Leave out `[preset=...]` to make the entry shared by all presets using the same Lorebook.
 
 Supported metadata:
 
 - `[WHEEL]`
 - `[id=unique_stable_id]`
+- `[preset=Name]`
 - `[weight=3]`
 - `[min=2]`
 - `[max=4]`
@@ -129,39 +174,25 @@ Supported metadata:
 
 ### Persistence
 
-```text
-(no persistence tag)
-```
+No persistence tag → stays on the wheel.
 
-→ stays on the wheel.
+`[cooldown=2]` → leaves for two completed spins of that preset, then returns.
 
-```text
-[cooldown=2]
-```
-
-→ leaves for two completed spins and then returns.
-
-```text
-[once]
-```
-
-→ permanently disappears for the **current chat** after winning.
-
-One-shot state, cooldowns, spin count and adaptive level are all isolated per SillyTavern chat.
+`[once]` → permanently disappears for that preset in the current chat after winning.
 
 ## 🪪 Active character Lorebook
 
-v1.3 adds a source option:
+Set Source to:
 
 ```text
 Active character card Lorebook
 ```
 
-The extension reads the active character's embedded `character_book.entries` directly. This allows a character card to contain its own wheel pack.
+The extension reads the active character's embedded `character_book.entries` directly, so a character card can carry its own wheel pack.
 
-Use **tagged-only mode** so ordinary character lore remains untouched and only entries containing `[WHEEL]` become wheel segments.
+Use tagged-only mode so normal character lore remains untouched and only entries containing `[WHEEL]` become wheel segments.
 
-## 🛡️ Lorebook validator
+## 🛡️ Validator
 
 Click **Validate / preview Lorebook** or run:
 
@@ -169,51 +200,18 @@ Click **Validate / preview Lorebook** or run:
 /wheel-validate
 ```
 
-The validator checks for:
-
-- duplicate or malformed stable IDs;
-- invalid weights;
-- invalid level ranges;
-- `min > max`;
-- `[level]` mixed with `[min]/[max]`;
-- `[once]` mixed with cooldown;
-- duplicate metadata fields;
-- missing title or Content;
-- missing `[WHEEL]` markers when wheel metadata is detected;
-- levels with no valid entries;
-- levels with no repeatable baseline entries.
-
-It also previews each level and shows counts for **total**, **repeatable**, **cooldown**, and **one-shot** entries.
-
-Entries with validation errors do not enter the active wheel.
-
-## 🧯 Cooldown deadlock protection
-
-If every otherwise-valid entry at the active level is currently cooling down, v1.3 temporarily releases the entry or entries whose cooldown expires first. This prevents a wheel from reaching zero selectable segments and becoming permanently stuck.
-
-A well-designed pack should still contain at least **2–3 always-repeatable entries at every level**.
+The validator checks malformed metadata, duplicate IDs, unknown preset names, invalid weights/levels, contradictory persistence tags, empty level coverage and missing repeatable baselines. Entries with validation errors are excluded from the wheel.
 
 ## 🎭 Visibility modes
 
-### Full
-
-Choices and selected result are visible.
-
-### Mystery wheel — `hidden-wheel`
-
-Wheel labels are concealed; the selected result is revealed afterward.
-
-### Secret result — `hidden-result`
-
-Choices are visible, but the selected result is hidden. The pointer is hidden too, preventing the winning segment from being inferred visually. The character/AI can receive the result privately.
-
-### Blind — `blind`
-
-Neither choices nor result are shown to the user. The character/AI can still receive the result privately.
+- **Full** — choices and result visible.
+- **Mystery wheel / hidden-wheel** — choices hidden, result visible.
+- **Secret result / hidden-result** — choices visible, result hidden; pointer hidden too.
+- **Blind** — choices and result hidden.
 
 ## 📈 Adaptive levels
 
-Forfeits may be level-gated. A typical five-level design might use:
+A typical five-level pack might use:
 
 | Level | Example role |
 | ---: | --- |
@@ -221,34 +219,33 @@ Forfeits may be level-gated. A typical five-level design might use:
 | 2 | more personal / consequential |
 | 3 | stronger scene changes |
 | 4 | rare / dramatic |
-| 5 | exceptional / major one-shot |
+| 5 | exceptional / one-shot |
 
-These meanings are pack-design suggestions, not hard-coded content rules.
+These meanings are design suggestions, not hard-coded rules.
 
 ## 📖 Documentation
 
 - **[Lorebook format & validator guide](docs/LOREBOOK.md)**
 - **[AI character-card + Character Lorebook integration prompt](docs/CARD_INTEGRATION_PROMPT.md)**
 
-## 🧩 Architecture
+## 🧩 Runtime
 
-v1.3 moves the active runtime into modular files under `v13/`:
+The active runtime is modular under `v13/` for compatibility with the v1.3 architecture:
 
 ```text
-v13/state.js       per-chat state and settings
-v13/lorebook.js    parser, validation and eligibility engine
-v13/wheel.js       visual wheel, suspense and result delivery
-v13/settings.js    settings and validator UI
-v13/index.js       commands, message triggers and initialization
+v13/state.js       settings, presets and per-chat/per-preset state
+v13/lorebook.js    parsing, validation, preset routing and eligibility
+v13/wheel.js       visual wheel, suspense, result delivery and audio hooks
+v13/audio.js       Web Audio sound engine and pointer tick tracking
+v13/settings.js    settings, preset manager and validator UI
+v13/index.js       commands, character triggers and initialization
 ```
-
-The previous root `index.js` remains in the repository as the older implementation/reference; `manifest.json` loads the v1.3 runtime.
 
 ## 🧪 Current version
 
-**v1.3.0**
+**v1.4.0**
 
-Major v1.3 additions: embedded Character Lorebook support, stable `[id=...]` metadata, per-chat one-shot removals, validation/error blocking, level coverage preview, duplicate-ID detection, cooldown deadlock protection, and an expanded AI card-integration workflow.
+Major v1.4 additions: named wheel presets, per-preset chat state, character-selectable presets, Lorebook `[preset=...]` routing, synchronized pointer ticks and configurable Web Audio sound effects.
 
 ## License
 
