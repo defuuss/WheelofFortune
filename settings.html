@@ -5,15 +5,70 @@
       <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
     </div>
     <div class="inline-drawer-content">
-      <p class="wof-muted">Animated weighted forfeits for roleplay. Spin manually, with STscript, or let a character trigger the wheel from chat.</p>
+      <p class="wof-muted">A real animated weighted wheel for roleplay. Open it on screen, spin manually, call it from STscript, or let the character trigger it from dialogue.</p>
 
       <div class="wof-row">
-        <button id="wof-open" class="menu_button">🎡 Open wheel</button>
-        <button id="wof-spin-settings" class="menu_button">✨ Spin now</button>
+        <button id="wof-open" class="menu_button">🎡 Open visual wheel</button>
+        <button id="wof-spin-settings" class="menu_button">✨ Open & spin now</button>
       </div>
 
       <hr>
-      <h4>Trigger</h4>
+      <h4>🎨 Wheel appearance</h4>
+      <p class="wof-muted">Changes are saved automatically and applied to the visual wheel.</p>
+
+      <label for="wof-wheel-title">Wheel title</label>
+      <input id="wof-wheel-title" class="text_pole" type="text" placeholder="Wheel of Fortune">
+
+      <label for="wof-wheel-theme">Segment theme</label>
+      <select id="wof-wheel-theme" class="text_pole">
+        <option value="neon">Neon / rainbow</option>
+        <option value="classic">Classic game-show</option>
+        <option value="pastel">Pastel</option>
+        <option value="ocean">Ocean</option>
+        <option value="fire">Fire</option>
+        <option value="mono">Monochrome</option>
+        <option value="custom">Custom colors</option>
+      </select>
+
+      <div id="wof-custom-colors-wrap">
+        <label for="wof-segment-colors">Custom segment colors</label>
+        <input id="wof-segment-colors" class="text_pole" type="text" placeholder="#7c4dff, #e449d6, #ff5c8a, #ffd166">
+        <p class="wof-muted">Comma-separated CSS colors. They repeat automatically if the wheel has more segments.</p>
+      </div>
+
+      <div class="wof-color-grid">
+        <label>Accent / center
+          <input id="wof-accent-color" type="color">
+        </label>
+        <label>Pointer
+          <input id="wof-pointer-color" type="color">
+        </label>
+        <label>Label text
+          <input id="wof-text-color" type="color">
+        </label>
+      </div>
+
+      <label for="wof-wheel-size">Wheel size (px)</label>
+      <input id="wof-wheel-size" class="text_pole" type="number" min="300" max="760" step="10">
+
+      <label for="wof-spin-direction">Spin direction</label>
+      <select id="wof-spin-direction" class="text_pole">
+        <option value="clockwise">Clockwise</option>
+        <option value="counterclockwise">Counter-clockwise</option>
+        <option value="random">Random each spin</option>
+      </select>
+
+      <label class="checkbox_label">
+        <input id="wof-show-weights" type="checkbox">
+        <span>Show probability percentage on wheel segments</span>
+      </label>
+      <label class="checkbox_label">
+        <input id="wof-floating-button-enabled" type="checkbox">
+        <span>Show floating 🎡 button in SillyTavern</span>
+      </label>
+
+      <hr>
+      <h4>🤖 Trigger</h4>
       <label class="checkbox_label">
         <input id="wof-trigger-enabled" type="checkbox">
         <span>Allow text trigger</span>
@@ -28,9 +83,10 @@
         <input id="wof-character-hint" type="checkbox">
         <span>Tell the character how to trigger the wheel</span>
       </label>
+      <p class="wof-muted">When a character outputs the configured token, the same large animated wheel opens on screen and spins automatically.</p>
 
       <hr>
-      <h4>Result behavior</h4>
+      <h4>👁️ Result behavior</h4>
       <label for="wof-result-mode">After the wheel lands</label>
       <select id="wof-result-mode" class="text_pole">
         <option value="system">Post result to chat as a system message</option>
@@ -39,7 +95,7 @@
       </select>
       <label class="checkbox_label">
         <input id="wof-hidden-spin" type="checkbox">
-        <span>Hidden spin (hide labels until the result is revealed)</span>
+        <span>Hidden spin — hide segment labels until the result is revealed</span>
       </label>
       <label class="checkbox_label">
         <input id="wof-auto-close" type="checkbox">
@@ -47,7 +103,7 @@
       </label>
 
       <hr>
-      <h4>Forfeit source</h4>
+      <h4>📚 Forfeit source</h4>
       <label for="wof-source">Source</label>
       <select id="wof-source" class="text_pole">
         <option value="manual">Manual entries</option>
@@ -68,14 +124,15 @@
 
       <div id="wof-manual-options">
         <div class="wof-row wof-between">
-          <b>Manual entries</b>
+          <b>Manual wheel entries</b>
           <button id="wof-add-entry" class="menu_button">＋ Add</button>
         </div>
+        <p class="wof-muted">Edit the label, probability weight, one-shot behavior, and the instruction delivered when that segment wins.</p>
         <div id="wof-entry-list"></div>
       </div>
 
       <hr>
-      <h4>Advanced</h4>
+      <h4>⚙️ Advanced</h4>
       <label class="checkbox_label">
         <input id="wof-remove-once" type="checkbox">
         <span>Honor “remove after selected” entries</span>
@@ -87,8 +144,9 @@
       </div>
 
       <div class="wof-help">
-        <b>STscript:</b> <code>/wheel</code>, <code>/wheel hidden=true</code>, <code>/wheel mode=private</code>.<br>
-        <b>Character trigger:</b> ask the character to output the configured token exactly when it wants to spin.
+        <b>Visual wheel:</b> click the floating 🎡 button, <b>Open visual wheel</b>, or use <code>/wheel-open</code>.<br>
+        <b>Spin:</b> <code>/wheel</code>, <code>/wheel hidden=true</code>, <code>/wheel mode=private</code>.<br>
+        <b>Aliases:</b> <code>/wof</code> and <code>/spinwheel</code>.
       </div>
     </div>
   </div>
