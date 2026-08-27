@@ -1,0 +1,30 @@
+name: Validate SillyTavern Extension
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate manifest JSON
+        run: python -m json.tool manifest.json > /dev/null
+
+      - name: Check v1.3 JavaScript syntax
+        run: |
+          set -e
+          for file in v13/*.js; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+
+      - name: Check manifest targets
+        run: |
+          test -f v13/index.js
+          test -f v13/style.css
+          test -f settings.html
