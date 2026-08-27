@@ -6,7 +6,7 @@
   "js": "index.js",
   "css": "style.css",
   "author": "defuuss",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "homePage": "https://github.com/defuuss/WheelofFortune",
   "auto_update": true
 }
