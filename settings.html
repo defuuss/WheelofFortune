@@ -133,7 +133,13 @@
           <option value="tagged">Only entries marked [WHEEL]</option>
           <option value="all">All enabled entries</option>
         </select>
+        <p class="wof-muted"><b>Persistence:</b> a Lorebook forfeit <b>stays on the wheel by default</b>. Add <code>[once]</code> to remove it permanently after it wins, or <code>[cooldown=2]</code> to remove it temporarily for two spins and then let it return.</p>
         <p class="wof-muted">Metadata: <code>[WHEEL]</code>, <code>[weight=3]</code>, <code>[min=2]</code>, <code>[max=4]</code>, <code>[level=3]</code>, <code>[cooldown=2]</code>, <code>[once]</code>.</p>
+        <div class="wof-code-help">
+          <code>[WHEEL] [weight=3] Repeatable forfeit</code> — stays on wheel<br>
+          <code>[WHEEL] [weight=3] [cooldown=2] Returning forfeit</code> — leaves temporarily<br>
+          <code>[WHEEL] [weight=1] [once] One-time forfeit</code> — removed permanently
+        </div>
         <button id="wof-refresh-lorebooks" class="menu_button">↻ Refresh Lorebooks</button>
       </div>
 
@@ -145,7 +151,7 @@
 
       <hr>
       <h4>⚙️ Advanced</h4>
-      <label class="checkbox_label"><input id="wof-remove-once" type="checkbox"><span>Honor permanently removed “once” entries</span></label>
+      <label class="checkbox_label"><input id="wof-remove-once" type="checkbox"><span>Honor <code>[once]</code> / one-shot entries by permanently removing them after selection</span></label>
       <div class="wof-row"><button id="wof-reset" class="menu_button">Reset all defaults</button></div>
 
       <div class="wof-help">
