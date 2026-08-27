@@ -39,7 +39,7 @@ https://github.com/defuuss/WheelofFortune
 4. Restart or reload SillyTavern if requested.
 5. Open **Extensions → Wheel of Fortune** and configure your wheel.
 
-During development, install the `sillytavern-extension-v1` branch or merge that branch into `main` first.
+The SillyTavern extension is now available directly from the repository's `main` branch.
 
 ## 🎮 Basic use
 
@@ -177,9 +177,9 @@ Ideas for later releases:
 
 ## 🧪 Current status
 
-**v1.0 development branch:** `sillytavern-extension-v1`
+**v1.0 is merged into `main`.**
 
-The extension implementation is ready for installation/testing against a current SillyTavern build. Because SillyTavern evolves quickly, bug reports should include the SillyTavern version and browser console error if one occurs.
+The implementation has been checked against the current SillyTavern extension APIs for message events, extension prompts, slash commands, settings, and World Info access. Real-world behavior should still be tested in an actual SillyTavern installation; bug reports should include the SillyTavern version and browser console error if one occurs.
 
 ## ❤️ Contributing
 
@@ -189,4 +189,4 @@ If you create a particularly good roleplay wheel/Lorebook format, feel free to s
 
 ## License
 
-A license file has not yet been selected for the repository. Add one before distributing derivative builds if you want explicit reuse terms.
+Released under the **MIT License**. See [LICENSE](LICENSE).
