@@ -1,0 +1,12 @@
+{
+  "display_name": "Wheel of Fortune",
+  "loading_order": 20,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "defuuss",
+  "version": "1.0.0",
+  "homePage": "https://github.com/defuuss/WheelofFortune",
+  "auto_update": true
+}

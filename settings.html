@@ -1,0 +1,95 @@
+<div id="wof-settings" class="wof-settings">
+  <div class="inline-drawer">
+    <div class="inline-drawer-toggle inline-drawer-header">
+      <b>🎡 Wheel of Fortune</b>
+      <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    </div>
+    <div class="inline-drawer-content">
+      <p class="wof-muted">Animated weighted forfeits for roleplay. Spin manually, with STscript, or let a character trigger the wheel from chat.</p>
+
+      <div class="wof-row">
+        <button id="wof-open" class="menu_button">🎡 Open wheel</button>
+        <button id="wof-spin-settings" class="menu_button">✨ Spin now</button>
+      </div>
+
+      <hr>
+      <h4>Trigger</h4>
+      <label class="checkbox_label">
+        <input id="wof-trigger-enabled" type="checkbox">
+        <span>Allow text trigger</span>
+      </label>
+      <label for="wof-trigger-token">Trigger word / token</label>
+      <input id="wof-trigger-token" class="text_pole" type="text" placeholder="[[SPIN_WHEEL]]">
+      <label class="checkbox_label">
+        <input id="wof-trigger-user" type="checkbox">
+        <span>User messages may trigger it too</span>
+      </label>
+      <label class="checkbox_label">
+        <input id="wof-character-hint" type="checkbox">
+        <span>Tell the character how to trigger the wheel</span>
+      </label>
+
+      <hr>
+      <h4>Result behavior</h4>
+      <label for="wof-result-mode">After the wheel lands</label>
+      <select id="wof-result-mode" class="text_pole">
+        <option value="system">Post result to chat as a system message</option>
+        <option value="prompt">Inject result silently into the next generation</option>
+        <option value="private">Keep result private (UI only)</option>
+      </select>
+      <label class="checkbox_label">
+        <input id="wof-hidden-spin" type="checkbox">
+        <span>Hidden spin (hide labels until the result is revealed)</span>
+      </label>
+      <label class="checkbox_label">
+        <input id="wof-auto-close" type="checkbox">
+        <span>Close wheel automatically after result</span>
+      </label>
+
+      <hr>
+      <h4>Forfeit source</h4>
+      <label for="wof-source">Source</label>
+      <select id="wof-source" class="text_pole">
+        <option value="manual">Manual entries</option>
+        <option value="lorebook">SillyTavern Lorebook / World Info</option>
+      </select>
+
+      <div id="wof-lorebook-options">
+        <label for="wof-lorebook">Lorebook</label>
+        <select id="wof-lorebook" class="text_pole"></select>
+        <label for="wof-lorebook-mode">Import entries</label>
+        <select id="wof-lorebook-mode" class="text_pole">
+          <option value="tagged">Only entries marked [WHEEL]</option>
+          <option value="all">All enabled entries</option>
+        </select>
+        <p class="wof-muted">Optional metadata in the Lorebook entry title/comment: <code>[WHEEL]</code>, <code>[weight=3]</code>, <code>[once]</code>.</p>
+        <button id="wof-refresh-lorebooks" class="menu_button">↻ Refresh Lorebooks</button>
+      </div>
+
+      <div id="wof-manual-options">
+        <div class="wof-row wof-between">
+          <b>Manual entries</b>
+          <button id="wof-add-entry" class="menu_button">＋ Add</button>
+        </div>
+        <div id="wof-entry-list"></div>
+      </div>
+
+      <hr>
+      <h4>Advanced</h4>
+      <label class="checkbox_label">
+        <input id="wof-remove-once" type="checkbox">
+        <span>Honor “remove after selected” entries</span>
+      </label>
+      <label for="wof-spin-seconds">Spin duration (seconds)</label>
+      <input id="wof-spin-seconds" class="text_pole" type="number" min="2" max="15" step="0.5">
+      <div class="wof-row">
+        <button id="wof-reset" class="menu_button">Reset defaults</button>
+      </div>
+
+      <div class="wof-help">
+        <b>STscript:</b> <code>/wheel</code>, <code>/wheel hidden=true</code>, <code>/wheel mode=private</code>.<br>
+        <b>Character trigger:</b> ask the character to output the configured token exactly when it wants to spin.
+      </div>
+    </div>
+  </div>
+</div>
