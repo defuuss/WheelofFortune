@@ -229,7 +229,7 @@ export async function openWheel(options = {}) {
     applyAppearance();
     const visibility = normalizeVisibility(options.visibility ?? s.visibilityMode);
     const level = getActiveLevel(options.level);
-    currentEntries = await resolveEntries({ level });
+    currentEntries = await resolveEntries({ level, sourceOverride: options.sourceOverride });
     if (!currentEntries.length) {
         toastr.warning(`No valid forfeits at level ${level}. Run “Validate / preview Lorebook”.`, 'Wheel of Fortune');
         return false;
@@ -248,7 +248,8 @@ export async function openWheel(options = {}) {
     document.getElementById('wof-result')?.classList.remove('wof-show', 'wof-result-secret');
     document.getElementById('wof-suspense')?.classList.remove('wof-show');
     const source = document.getElementById('wof-source-label');
-    if (source) source.textContent = `${sourceLabel()} · ${currentEntries.length} eligible${currentEntries.some(e => e.cooldownSafetyRelease) ? ' · cooldown safety release' : ''}`;
+    const effectiveSourceLabel = options.sourceOverride === 'character' ? 'Active character Lorebook · auto-detected' : sourceLabel();
+    if (source) source.textContent = `${effectiveSourceLabel} · ${currentEntries.length} eligible${currentEntries.some(e => e.cooldownSafetyRelease) ? ' · cooldown safety release' : ''}`;
     const badge = document.getElementById('wof-level-badge');
     if (badge) badge.textContent = `Level ${level}`;
     drawWheel(currentEntries, hideWheelFor(visibility));
@@ -303,7 +304,7 @@ export async function spinWheel(options = {}) {
     const opened = overlay?.classList.contains('wof-open') || await openWheel({ ...options, preset: undefined, visibility, level });
     if (!opened) return '';
 
-    currentEntries = await resolveEntries({ level });
+    currentEntries = await resolveEntries({ level, sourceOverride: options.sourceOverride });
     if (!currentEntries.length) return '';
     spunThisOpen = true;
     spinning = true;
@@ -353,7 +354,7 @@ export async function spinWheel(options = {}) {
     }
     resultBox?.classList.add('wof-show');
 
-    s.history.unshift({ title: entry.title, time: new Date().toLocaleString(), source: s.source, preset: getActivePresetName(), level, secret });
+    s.history.unshift({ title: entry.title, time: new Date().toLocaleString(), source: options.sourceOverride || s.source, preset: getActivePresetName(), level, secret });
     s.history = s.history.slice(0, 30);
     if (s.removeOnce && entry.once) markRemoved(entry.sourceId);
     advanceProgress(entry);
