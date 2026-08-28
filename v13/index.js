@@ -9,10 +9,11 @@ import {
 import { validateCurrentSource } from './lorebook.js';
 import { installAudioUnlock } from './audio.js';
 import { bindSettingsUi } from './settings.js';
-import { buildOverlay, clearInjectedPrompt, isSpinning, openWheel, spinWheel, syncFloatingButton } from './wheel.js';
+import { buildOverlay, clearInjectedPrompt, closeWheel, isSpinning, openWheel, spinWheel, syncFloatingButton } from './wheel.js';
 
 let commandsRegistered = false;
 let lastTriggerFingerprint = '';
+let autoContinuationRunning = false;
 
 function parseControlOptions(text) {
     const match = String(text || '').match(EXTENDED_TRIGGER_RE);
@@ -35,9 +36,35 @@ function messageFingerprint(message, index) {
     return `${index}:${message?.is_user ? 'u' : 'a'}:${String(message?.mes ?? '')}`;
 }
 
+async function continueAfterCharacterSpin() {
+    if (autoContinuationRunning) return;
+    const c = getContext();
+    if (typeof c?.generate !== 'function') {
+        console.warn('[Wheel of Fortune] SillyTavern generate() API is unavailable; result remains queued for the next generation.');
+        toastr.warning('Wheel result is ready, but automatic chat continuation is unavailable. Send/generate once manually.', 'Wheel of Fortune');
+        return;
+    }
+
+    autoContinuationRunning = true;
+    try {
+        // Keep the result visible briefly, then return to chat before asking the model to continue.
+        await new Promise(resolve => setTimeout(resolve, 900));
+        closeWheel();
+        await new Promise(resolve => setTimeout(resolve, 120));
+        await c.generate();
+        clearInjectedPrompt();
+    } catch (error) {
+        // Do not clear the prompt on failure: the selected result remains available for the next manual generation.
+        console.error('[Wheel of Fortune] Automatic continuation failed', error);
+        toastr.warning('Automatic continuation failed. The wheel result is still queued for the next generation.', 'Wheel of Fortune');
+    } finally {
+        autoContinuationRunning = false;
+    }
+}
+
 async function inspectLatestMessage({ allowUser = false } = {}) {
     const s = getState();
-    if (!s.triggerEnabled || isSpinning()) return;
+    if (!s.triggerEnabled || isSpinning() || autoContinuationRunning) return;
     const c = getContext();
     const index = c.chat.length - 1;
     const message = c.chat[index];
@@ -52,7 +79,16 @@ async function inspectLatestMessage({ allowUser = false } = {}) {
     const fingerprint = messageFingerprint(message, index);
     if (fingerprint === lastTriggerFingerprint) return;
     lastTriggerFingerprint = fingerprint;
-    await spinWheel(extended || {});
+
+    const triggeredByCharacter = !message.is_user;
+    const options = { ...(extended || {}) };
+
+    // Character-triggered spins are tool calls: always inject the selected result into model context.
+    // Manual/user-triggered spins keep the preset's configured result-delivery behavior.
+    if (triggeredByCharacter) options.result = 'prompt';
+
+    const result = await spinWheel(options);
+    if (triggeredByCharacter && result) await continueAfterCharacterSpin();
 }
 
 function registerCommands() {
@@ -167,12 +203,13 @@ jQuery(async () => {
         if (event_types.MESSAGE_SENT) eventSource.on(event_types.MESSAGE_SENT, () => inspectLatestMessage({ allowUser: true }));
         eventSource.on(event_types.CHAT_CHANGED, () => {
             lastTriggerFingerprint = '';
+            autoContinuationRunning = false;
             clearInjectedPrompt();
             renderProgressUi();
             updateCharacterHint();
         });
 
-        console.info('[Wheel of Fortune] Extension v1.4 loaded');
+        console.info('[Wheel of Fortune] Extension v1.4.1 loaded');
     } catch (error) {
         console.error('[Wheel of Fortune] Fatal initialization error', error);
         toastr.error('Wheel of Fortune failed to initialize.', 'Wheel of Fortune');
