@@ -7,7 +7,7 @@ import {
     setCurrentLevel, updateCharacterHint,
 } from './state.js';
 import { countWheelTriggers, parseControlOptions, shouldBlockCharacterTrigger, stripWheelTriggerTokens } from './core.js';
-import { validateCurrentSource } from './lorebook.js';
+import { hasCharacterWheelEntries, validateCurrentSource } from './lorebook.js';
 import { installAudioUnlock } from './audio.js';
 import { bindSettingsUi } from './settings.js';
 import {
@@ -122,10 +122,19 @@ async function inspectLatestMessage({ allowUser = false } = {}) {
     }
 
     const options = { ...(extended || {}) };
-    if (triggeredByCharacter) options.result = 'prompt';
+    let embeddedCharacterBook = false;
+    if (triggeredByCharacter) {
+        options.result = 'prompt';
+        try {
+            embeddedCharacterBook = await hasCharacterWheelEntries({ preset: options.preset });
+            if (embeddedCharacterBook) options.sourceOverride = 'character';
+        } catch (error) {
+            console.warn('[Wheel of Fortune] Embedded Character Book auto-detection failed; using configured preset source', error);
+        }
+    }
 
     setRuntimeStatus({
-        lastTrigger: `${triggeredByCharacter ? 'Character' : 'User'} trigger${triggerCount > 1 ? ` (${triggerCount} found; first used)` : ''}`,
+        lastTrigger: `${triggeredByCharacter ? 'Character' : 'User'} trigger${triggerCount > 1 ? ` (${triggerCount} found; first used)` : ''}${embeddedCharacterBook ? ' · embedded Character Book' : ''}`,
         lastContinuation: triggeredByCharacter ? 'Wheel spinning…' : 'Not applicable to user trigger',
     });
 
@@ -273,7 +282,7 @@ jQuery(async () => {
             setRuntimeStatus({ lastTrigger: 'None yet in this chat', lastContinuation: 'Idle', lastCleanup: 'None yet' });
         });
 
-        console.info('[Wheel of Fortune] Extension v1.5.0 loaded');
+        console.info('[Wheel of Fortune] Extension v1.5.1 loaded');
     } catch (error) {
         console.error('[Wheel of Fortune] Fatal initialization error', error);
         toastr.error('Wheel of Fortune failed to initialize.', 'Wheel of Fortune');
