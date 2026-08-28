@@ -7,6 +7,8 @@ Built for roleplay: spin manually, call it from STscript, let the character inte
 ## ✨ Highlights
 
 - 🎡 Large animated weighted wheel with long suspense spins and dramatic result reveal.
+- 🎯 **One deliberate spin per wheel opening** — no Spin Again button after a result.
+- 🔄 **Automatic character continuation** — a character-triggered wheel acts like a tool call: spin → result injected → fresh character message generated automatically.
 - 🎛️ **Multiple named wheel presets** with independent entries/source, appearance, visibility, adaptive levels, timing and audio.
 - 🔊 **Pointer ticks and sound effects** generated locally with the Web Audio API — no external MP3 files.
 - 🎭 Four visibility modes: Full, Mystery wheel, Secret result and Blind.
@@ -118,6 +120,8 @@ Validate the active preset source:
 /wheel-validate
 ```
 
+Manual slash-command spins do **not** automatically generate another character message. Automatic continuation is specifically for a wheel intentionally triggered by the character.
+
 ## 🤖 Character-triggered wheel
 
 The active character can deliberately output:
@@ -129,6 +133,32 @@ The active character can deliberately output:
 [[SPIN_WHEEL preset="Consequences" mode=hidden-result]]
 [[SPIN_WHEEL preset="Chaos" mode=blind level=4 seconds=12]]
 ```
+
+### Automatic tool-like continuation — v1.4.1
+
+A character-triggered spin now follows this sequence automatically:
+
+1. the character finishes a message containing the trigger;
+2. the extension catches the trigger;
+3. the visual wheel opens and spins once;
+4. the actual selected forfeit is injected into model context;
+5. the wheel closes after the result has been shown briefly;
+6. SillyTavern starts a **new normal character generation**;
+7. that fresh character message continues the RP using the selected result;
+8. the temporary result prompt is cleared after the generation completes.
+
+This also works with secret-result and Blind modes: the user does not need to see the result for the model to act on it.
+
+The character should therefore put the trigger at the **end of its message** and must not guess the result itself:
+
+```text
+Fine. We'll let the wheel decide.
+[[SPIN_WHEEL preset="Secrets"]]
+```
+
+The next character message is generated only after the real wheel result exists.
+
+If automatic generation fails because SillyTavern is not ready or the backend is unavailable, the selected result remains queued for the next manual generation instead of being lost.
 
 When the character hint is enabled, the extension tells the model the actual configured preset names and instructs it not to invent or casually quote control tokens.
 
@@ -235,17 +265,17 @@ The active runtime is modular under `v13/` for compatibility with the v1.3 archi
 ```text
 v13/state.js       settings, presets and per-chat/per-preset state
 v13/lorebook.js    parsing, validation, preset routing and eligibility
-v13/wheel.js       visual wheel, suspense, result delivery and audio hooks
+v13/wheel.js       visual wheel, one-spin lifecycle, result delivery and audio hooks
 v13/audio.js       Web Audio sound engine and pointer tick tracking
 v13/settings.js    settings, preset manager and validator UI
-v13/index.js       commands, character triggers and initialization
+v13/index.js       commands, character triggers and automatic continuation
 ```
 
 ## 🧪 Current version
 
-**v1.4.0**
+**v1.4.1**
 
-Major v1.4 additions: named wheel presets, per-preset chat state, character-selectable presets, Lorebook `[preset=...]` routing, synchronized pointer ticks and configurable Web Audio sound effects.
+v1.4.1 removes the post-result Spin Again flow and turns character-triggered spins into an automatic tool-style sequence: select result, inject it into context, close the wheel, and generate a fresh character message. v1.4 introduced named wheel presets, per-preset chat state, character-selectable presets, Lorebook `[preset=...]` routing, synchronized pointer ticks and configurable Web Audio sound effects.
 
 ## License
 

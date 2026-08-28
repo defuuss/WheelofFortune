@@ -14,6 +14,7 @@ let ctx2d = null;
 let currentEntries = [];
 let currentRotation = 0;
 let spinning = false;
+let spunThisOpen = false;
 let promptTimeout = null;
 
 export function isSpinning() { return spinning; }
@@ -177,7 +178,7 @@ export function buildOverlay() {
           <div id="wof-stage" class="wof-stage"><div class="wof-wheel-wrap"><div class="wof-pointer"></div><canvas id="wof-canvas" class="wof-canvas"></canvas><button id="wof-center" class="wof-center" type="button"><b>SPIN</b><span>the wheel</span></button></div></div>
           <div id="wof-suspense" class="wof-suspense">The wheel has stopped…</div>
           <div id="wof-result" class="wof-result"><div class="wof-result-label">The wheel chose</div><div id="wof-result-title" class="wof-result-title"></div><div id="wof-result-body" class="wof-result-body"></div></div>
-          <div class="wof-actions"><button id="wof-spin-again" class="wof-action wof-action-primary">🎲 Spin again</button><button id="wof-close-bottom" class="wof-action">Close</button></div>
+          <div class="wof-actions"><button id="wof-close-bottom" class="wof-action">Close</button></div>
           <details class="wof-history"><summary>Recent spins</summary><div id="wof-history-list" class="wof-history-list"></div></details>
         </div>
       </div>`);
@@ -188,7 +189,6 @@ export function buildOverlay() {
     document.getElementById('wof-close')?.addEventListener('click', closeWheel);
     document.getElementById('wof-close-bottom')?.addEventListener('click', closeWheel);
     document.getElementById('wof-center')?.addEventListener('click', () => spinWheel());
-    document.getElementById('wof-spin-again')?.addEventListener('click', () => spinWheel());
     overlay?.addEventListener('click', e => { if (e.target === overlay && !spinning) closeWheel(); });
     window.addEventListener('resize', () => drawWheel(currentEntries, hideWheelFor(getState().visibilityMode)));
     applyAppearance();
@@ -235,6 +235,11 @@ export async function openWheel(options = {}) {
         return false;
     }
 
+    spunThisOpen = false;
+    const center = document.getElementById('wof-center');
+    center?.classList.remove('wof-disabled');
+    if (center) center.innerHTML = '<b>SPIN</b><span>the wheel</span>';
+
     overlay.dataset.visibility = visibility;
     overlay.classList.toggle('wof-hidden-wheel', hideWheelFor(visibility));
     overlay.classList.toggle('wof-hidden-result', hideResultFor(visibility));
@@ -277,20 +282,20 @@ async function deliverResult(entry, requestedMode, visibility) {
     } else if (mode === 'prompt') {
         c.setExtensionPrompt(
             PROMPT_KEY,
-            `A Wheel of Fortune spin from preset "${getActivePresetName()}" selected the following authoritative roleplay forfeit. The user may not be allowed to see the result. Incorporate it naturally and never reveal hidden wheel information unless explicitly permitted:\n\n${entry.title}\n${entry.description}`,
+            `A Wheel of Fortune spin from preset "${getActivePresetName()}" selected the following authoritative roleplay forfeit. Continue the roleplay from this outcome. Do not narrate extension internals or reveal hidden wheel information unless explicitly permitted. Do not immediately trigger another wheel unless the scene genuinely calls for a separate later spin:\n\n${entry.title}\n${entry.description}`,
             extension_prompt_types.IN_CHAT,
             0,
         );
         clearTimeout(promptTimeout);
         promptTimeout = setTimeout(clearInjectedPrompt, 180000);
-        if (!secret) toastr.success('Result silently injected into the next generation.', 'Wheel of Fortune');
+        if (!secret) toastr.success('Result injected into the next character generation.', 'Wheel of Fortune');
     } else if (!secret) {
         toastr.info('Result kept in the wheel UI only.', 'Wheel of Fortune');
     }
 }
 
 export async function spinWheel(options = {}) {
-    if (spinning) return '';
+    if (spinning || spunThisOpen) return '';
     if (!activateRequestedPreset(options)) return '';
     const s = getState();
     const visibility = normalizeVisibility(options.visibility ?? (options.hidden === true ? 'hidden-wheel' : s.visibilityMode));
@@ -300,6 +305,7 @@ export async function spinWheel(options = {}) {
 
     currentEntries = await resolveEntries({ level });
     if (!currentEntries.length) return '';
+    spunThisOpen = true;
     spinning = true;
     const center = document.getElementById('wof-center');
     const resultBox = document.getElementById('wof-result');
@@ -331,7 +337,7 @@ export async function spinWheel(options = {}) {
     if (revealDelay) await new Promise(resolve => setTimeout(resolve, revealDelay * 1000));
     suspense?.classList.remove('wof-show');
     spinning = false;
-    center?.classList.remove('wof-disabled');
+    if (center) center.innerHTML = '<b>DONE</b><span>result chosen</span>';
 
     const secret = hideResultFor(visibility);
     playResultSound({ secret });
