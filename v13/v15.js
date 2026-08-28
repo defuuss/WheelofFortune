@@ -134,16 +134,42 @@ async function importPresetFile(file) {
     setTimeout(() => location.reload(), 600);
 }
 
+function updateLorebookHelpToNativeFormat(root) {
+    const taggedOption = root.querySelector('#wof-lorebook-mode option[value="tagged"]');
+    if (taggedOption) taggedOption.textContent = 'Recommended — WheelOfFortune / [WHEEL] entries only';
+
+    const paragraphs = [...root.querySelectorAll('p')];
+    const format = paragraphs.find(p => /Official v1\.[34] format/i.test(p.textContent || ''));
+    if (format) {
+        format.innerHTML = '<b>Official v1.5.4 format:</b> keep Name/Comment readable and place wheel metadata in SillyTavern <b>Primary Keywords</b>. Legacy bracket metadata remains supported.';
+        const examples = format.nextElementSibling;
+        if (examples?.classList.contains('wof-code-help')) {
+            examples.innerHTML = [
+                '<code>Name: Truth question · Keywords: WheelOfFortune · wof:id=truth_01 · wof:weight=4 · wof:min=1 · wof:max=3</code>',
+                '<code>Name: Reveal a secret · Keywords: WheelOfFortune · wof:id=secret_01 · wof:weight=2 · wof:min=2 · wof:max=5 · wof:cooldown=2</code>',
+                '<code>Name: Major plot event · Keywords: WheelOfFortune · wof:id=plot_01 · wof:level=5 · wof:once</code>',
+            ].join('<br>');
+        }
+    }
+
+    for (const p of paragraphs) {
+        const text = p.textContent || '';
+        if (/^Persistence:/i.test(text.trim())) {
+            p.innerHTML = '<b>Persistence:</b> no persistence keyword = stays. <code>wof:cooldown=N</code> = temporarily unavailable for N completed spins. <code>wof:once</code> = removed for the current preset/chat after it wins.';
+        } else if (/^Stable IDs:/i.test(text.trim())) {
+            p.innerHTML = '<b>Stable IDs:</b> <code>wof:id=...</code> is strongly recommended; e.g. <code>studio_category_01</code>. Legacy <code>[id=...]</code> is accepted.';
+        } else if (/^Supported metadata:/i.test(text.trim())) {
+            p.innerHTML = 'Primary Keywords: <code>WheelOfFortune</code>, <code>wof:id=...</code>, <code>wof:preset=...</code>, <code>wof:weight=...</code>, <code>wof:min=...</code>, <code>wof:max=...</code>, <code>wof:level=...</code>, <code>wof:cooldown=...</code>, <code>wof:once</code>.';
+        }
+    }
+}
+
 function injectV15Ui() {
     if (document.getElementById('wof-v15-ux')) return;
     const root = document.querySelector('#wof-settings .inline-drawer-content');
     if (!root) return;
 
-    root.querySelectorAll('p').forEach(p => {
-        if (/Official v1\.[34] format/i.test(p.textContent || '')) {
-            p.innerHTML = '<b>Official v1.5.4 format:</b> keep the Lorebook Name/Comment readable and put wheel metadata in SillyTavern <b>Primary Keywords</b>: <code>WheelOfFortune</code>, <code>wof:preset=Name</code>, <code>wof:id=...</code>, <code>wof:weight=...</code>, etc. Legacy bracket metadata remains supported.';
-        }
-    });
+    updateLorebookHelpToNativeFormat(root);
 
     root.insertAdjacentHTML('beforeend', `
       <div id="wof-v15-ux">
