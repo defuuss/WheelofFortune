@@ -2,12 +2,12 @@ import { SlashCommandParser } from '../../../../slash-commands/SlashCommandParse
 import { SlashCommand } from '../../../../slash-commands/SlashCommand.js';
 import { ARGUMENT_TYPE, SlashCommandNamedArgument } from '../../../../slash-commands/SlashCommandArgument.js';
 import {
-    ensureSettings, eventSource, event_types, getActivePresetName, getContext,
-    getPresets, getProgress, getState, renderProgressUi, selectPreset,
+    createPreset, ensureSettings, eventSource, event_types, getActivePresetName, getContext,
+    getPresets, getProgress, getState, persist, renderProgressUi, resolvePreset, selectPreset,
     setCurrentLevel, updateCharacterHint,
 } from './state.js';
 import { countWheelTriggers, parseControlOptions, shouldBlockCharacterTrigger, stripWheelTriggerTokens } from './core.js';
-import { hasCharacterWheelEntries, validateCurrentSource } from './lorebook.js';
+import { getRawSourceEntries, hasCharacterWheelEntries, validateCurrentSource } from './lorebook.js';
 import { installAudioUnlock } from './audio.js';
 import { bindSettingsUi } from './settings.js';
 import {
@@ -22,6 +22,31 @@ let autoTriggerLockedUntilUser = false;
 
 function messageFingerprint(message, index) {
     return `${index}:${message?.is_user ? 'u' : 'a'}:${String(message?.mes ?? '')}`;
+}
+
+function rawEntryMetadataText(entry) {
+    const keys = Array.isArray(entry?.key) ? entry.key : (Array.isArray(entry?.keys) ? entry.keys : (entry?.key ? [entry.key] : []));
+    return `${String(entry?.comment ?? entry?.name ?? '')} ${keys.join(' ')}`;
+}
+
+function normalizePresetToken(value) {
+    return String(value ?? '').trim().replace(/^(?:"|')|(?:"|')$/g, '').trim().toLowerCase();
+}
+
+async function characterBookDeclaresPreset(presetName) {
+    const target = normalizePresetToken(presetName);
+    if (!target) return false;
+    const raw = await getRawSourceEntries('character');
+    return raw.rawEntries.some(entry => {
+        if (!entry || entry.disable === true || entry.enabled === false) return false;
+        const text = rawEntryMetadataText(entry);
+        if (!/\[\s*WHEEL\s*\]/i.test(text)) return false;
+        for (const match of text.matchAll(/\[\s*preset\s*=\s*([^\]]+)\]/gi)) {
+            const names = String(match[1] ?? '').split(',').map(normalizePresetToken).filter(Boolean);
+            if (names.includes(target)) return true;
+        }
+        return false;
+    });
 }
 
 async function cleanTriggerMessage(context, message, index, originalText) {
@@ -123,18 +148,42 @@ async function inspectLatestMessage({ allowUser = false } = {}) {
 
     const options = { ...(extended || {}) };
     let embeddedCharacterBook = false;
+    let autoCreatedPreset = false;
     if (triggeredByCharacter) {
         options.result = 'prompt';
         try {
-            embeddedCharacterBook = await hasCharacterWheelEntries({ preset: options.preset });
-            if (embeddedCharacterBook) options.sourceOverride = 'character';
+            const requestedPreset = String(options.preset || '').trim();
+            const existingPreset = requestedPreset ? resolvePreset(requestedPreset) : null;
+
+            if (requestedPreset && !existingPreset) {
+                // Self-contained character cards may define a wheel family entirely inside their
+                // Character Book. Only auto-create a named preset when the book explicitly routes
+                // at least one [WHEEL] entry to that exact [preset=Name]. Shared entries alone do
+                // not authorize arbitrary preset creation.
+                const declaredByCharacter = await characterBookDeclaresPreset(requestedPreset);
+                if (declaredByCharacter) {
+                    const created = createPreset(requestedPreset, { cloneCurrent: true });
+                    const active = getState();
+                    active.source = 'character';
+                    active.lorebookMode = 'tagged';
+                    persist();
+                    options.preset = created.name;
+                    options.sourceOverride = 'character';
+                    embeddedCharacterBook = true;
+                    autoCreatedPreset = true;
+                    toastr.info(`Created wheel preset “${created.name}” from this character's embedded Lorebook.`, 'Wheel of Fortune');
+                }
+            } else {
+                embeddedCharacterBook = await hasCharacterWheelEntries({ preset: options.preset });
+                if (embeddedCharacterBook) options.sourceOverride = 'character';
+            }
         } catch (error) {
             console.warn('[Wheel of Fortune] Embedded Character Book auto-detection failed; using configured preset source', error);
         }
     }
 
     setRuntimeStatus({
-        lastTrigger: `${triggeredByCharacter ? 'Character' : 'User'} trigger${triggerCount > 1 ? ` (${triggerCount} found; first used)` : ''}${embeddedCharacterBook ? ' · embedded Character Book' : ''}`,
+        lastTrigger: `${triggeredByCharacter ? 'Character' : 'User'} trigger${triggerCount > 1 ? ` (${triggerCount} found; first used)` : ''}${embeddedCharacterBook ? ' · embedded Character Book' : ''}${autoCreatedPreset ? ' · preset auto-created' : ''}`,
         lastContinuation: triggeredByCharacter ? 'Wheel spinning…' : 'Not applicable to user trigger',
     });
 
@@ -282,7 +331,7 @@ jQuery(async () => {
             setRuntimeStatus({ lastTrigger: 'None yet in this chat', lastContinuation: 'Idle', lastCleanup: 'None yet' });
         });
 
-        console.info('[Wheel of Fortune] Extension v1.5.1 loaded');
+        console.info('[Wheel of Fortune] Extension v1.5.2 loaded');
     } catch (error) {
         console.error('[Wheel of Fortune] Fatal initialization error', error);
         toastr.error('Wheel of Fortune failed to initialize.', 'Wheel of Fortune');
