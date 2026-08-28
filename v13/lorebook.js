@@ -180,22 +180,45 @@ function validateParsedEntries(parsed, { requireTagged = true } = {}) {
     return { relevant, issues };
 }
 
-export async function getRawSourceEntries() {
-    const s = getState();
-    const c = getContext();
-
-    if (s.source === 'character') {
-        const char = c?.characters?.[c.characterId];
-        const book = char?.data?.character_book ?? char?.character_book;
-        const entries = Array.isArray(book?.entries) ? book.entries : [];
+async function getCharacterBookSource() {
+    const initial = getContext();
+    const characterId = initial?.characterId;
+    if (characterId === undefined || characterId === null) {
         return {
-            sourceName: `character:${c.characterId ?? 'active'}`,
-            displayName: `${char?.name || c?.name2 || 'Active character'} Lorebook`,
-            rawEntries: entries,
+            sourceName: 'character:none',
+            displayName: 'No active character Lorebook',
+            rawEntries: [],
         };
     }
 
-    if (s.source === 'lorebook') {
+    // Current SillyTavern may keep character cards shallow/lazy-loaded. The shallow
+    // representation does not reliably contain data.character_book, so load the full card
+    // before reading embedded wheel entries.
+    try {
+        await initial.unshallowCharacter?.(characterId);
+    } catch (error) {
+        console.warn('[Wheel of Fortune] Could not unshallow active character before reading Character Book', error);
+    }
+
+    const c = getContext();
+    const char = c?.characters?.[characterId] ?? initial?.characters?.[characterId];
+    const book = char?.data?.character_book ?? char?.character_book;
+    const entries = Array.isArray(book?.entries) ? book.entries : [];
+    return {
+        sourceName: `character:${characterId}`,
+        displayName: `${char?.name || c?.name2 || 'Active character'} Lorebook`,
+        rawEntries: entries,
+    };
+}
+
+export async function getRawSourceEntries(sourceOverride = null) {
+    const s = getState();
+    const source = sourceOverride || s.source;
+    const c = getContext();
+
+    if (source === 'character') return getCharacterBookSource();
+
+    if (source === 'lorebook') {
         if (!s.lorebook) return { sourceName: 'lorebook:none', displayName: 'No Lorebook selected', rawEntries: [] };
         const book = await c.loadWorldInfo(s.lorebook);
         return { sourceName: `lorebook:${s.lorebook}`, displayName: s.lorebook, rawEntries: Object.values(book?.entries ?? {}) };
@@ -204,26 +227,32 @@ export async function getRawSourceEntries() {
     return { sourceName: 'manual', displayName: 'Manual entries', rawEntries: [] };
 }
 
-function matchesActivePreset(entry) {
+function matchesPresetRef(entry, presetRef = null) {
     const names = Array.isArray(entry?.presetNames) ? entry.presetNames : [];
     if (!names.length) return true;
     const activeName = getActivePresetName().toLowerCase();
     const activeId = String(getState().activePresetId || '').toLowerCase();
+    const requested = String(presetRef || '').trim().toLowerCase();
     return names.some(name => {
         const value = String(name).trim().toLowerCase();
-        return value === '*' || value === 'all' || value === activeName || value === activeId;
+        return value === '*' || value === 'all' || value === requested || value === activeName || value === activeId;
     });
 }
 
-export async function loadParsedSource({ validateAll = false } = {}) {
+function matchesActivePreset(entry) {
+    return matchesPresetRef(entry, null);
+}
+
+export async function loadParsedSource({ validateAll = false, sourceOverride = null } = {}) {
     const s = getState();
-    if (s.source === 'manual') {
+    const source = sourceOverride || s.source;
+    if (source === 'manual') {
         const entries = s.entries.filter(e => e?.title).map(e => ({ entry: { ...normalizeEntry(e), sourceId: e.id, presetNames: [] }, issues: [], tagged: true }));
         return { displayName: 'Manual entries', entries, issues: [] };
     }
 
     try {
-        const raw = await getRawSourceEntries();
+        const raw = await getRawSourceEntries(sourceOverride);
         const parsed = raw.rawEntries.filter(rawEntryEnabled).map(e => normalizeRawEntry(e, raw.sourceName));
         const requireTagged = s.lorebookMode !== 'all';
         const { relevant, issues } = validateParsedEntries(parsed, { requireTagged });
@@ -244,9 +273,16 @@ function hasValidationError(entry) { return entry.validationIssues?.some(i => i.
 function inLevel(entry, level) { return level >= Number(entry.minLevel || 1) && level <= Number(entry.maxLevel || 99); }
 function cooldownUntil(entry) { return Number(getCooldownMap()[entry.sourceId] || 0); }
 
+export async function hasCharacterWheelEntries({ preset = null } = {}) {
+    const parsed = await loadParsedSource({ sourceOverride: 'character' });
+    return parsed.entries
+        .map(x => x.entry)
+        .some(e => e.tagged && !hasValidationError(e) && matchesPresetRef(e, preset));
+}
+
 export async function resolveEntries(options = {}) {
     const level = getActiveLevel(options.level);
-    const parsed = await loadParsedSource();
+    const parsed = await loadParsedSource({ sourceOverride: options.sourceOverride || null });
     const base = parsed.entries
         .map(x => x.entry)
         .filter(e => matchesActivePreset(e) && !hasValidationError(e) && !isRemoved(e.sourceId) && inLevel(e, level));
@@ -256,8 +292,8 @@ export async function resolveEntries(options = {}) {
     const active = base.filter(e => cooldownUntil(e) <= spins);
     if (active.length) return active;
 
-    // Deadlock protection: if every otherwise-valid entry is cooling down, temporarily
-    // release the entry/entries that would return first. State itself is not modified.
+    // Deadlock protection: if every otherwise-valid entry at this level is cooling down,
+    // temporarily release the entry/entries that would return first. State is not modified.
     const soonest = Math.min(...base.map(cooldownUntil));
     const fallback = base.filter(e => cooldownUntil(e) === soonest).map(e => ({ ...e, cooldownSafetyRelease: true }));
     console.warn('[Wheel of Fortune] Cooldown deadlock prevented; temporarily releasing', fallback.map(e => e.title));
