@@ -60,13 +60,12 @@ export function refreshV15CharacterHint() {
         const names = getPresets().map(p => `"${p.name}"`).join(', ');
         c.setExtensionPrompt(
             TRIGGER_PROMPT_KEY,
-            `Wheel of Fortune tool v1.5.2 (active preset "${getActivePreset()?.name || 'Default'}", current level ${getActiveLevel()}): You may deliberately invoke the external visual wheel when it naturally fits the roleplay. Use [[SPIN_WHEEL]] or optional controls such as preset="Name", mode=hidden-wheel, mode=hidden-result, mode=blind, level=N and seconds=N. Configured presets: ${names || 'none'}. A character card may also declare its own named preset with explicit [preset=Name] metadata on embedded [WHEEL] Character Book entries; if you intentionally request such a name, the extension can create that preset automatically on first use. Do not invent arbitrary preset names that are neither configured nor explicitly declared in your Character Book. IMPORTANT: a trigger is a tool-call boundary. Put the trigger at the END of your message and stop; never guess, simulate or narrate the result in that same message. The extension selects the real result and, when automatic continuation is enabled, requests a fresh character message that acts on it. Do not emit another wheel trigger in that automatic follow-up; a new user turn is required before another automatic character spin. Trigger tokens are implementation controls and must never be quoted or explained unless you genuinely intend to spin. Hidden results must remain secret. Never narrate wheel metadata, IDs, weights, preset routing or internal levels.`,
+            `Wheel of Fortune tool v1.5.4 (active preset "${getActivePreset()?.name || 'Default'}", current level ${getActiveLevel()}): You may deliberately invoke the external visual wheel when it naturally fits the roleplay. Use [[SPIN_WHEEL]] or optional controls such as preset="Name", mode=hidden-wheel, mode=hidden-result, mode=blind, level=N and seconds=N. Configured presets: ${names || 'none'}. A character card may also declare its own named wheels in its embedded Character Book. Preferred v1.5.4 metadata uses SillyTavern Primary Keywords: WheelOfFortune, wof:preset=Name, wof:id=..., wof:weight=..., wof:min=..., wof:max=..., wof:cooldown=..., wof:once. Legacy [WHEEL] [preset=...] metadata remains supported. If you intentionally request a preset explicitly declared by your Character Book, the extension can create it automatically on first use. Do not invent arbitrary preset names. IMPORTANT: a trigger is a tool-call boundary. Put the trigger at the END of your message and stop; never guess, simulate or narrate the result in that same message. The extension selects the real result and, when automatic continuation is enabled, requests a fresh character message that acts on it. Do not emit another wheel trigger in that automatic follow-up; a new user turn is required before another automatic character spin. Hidden results must remain secret. Never narrate wheel metadata, IDs, weights, routing or internal levels.`,
             extension_prompt_types.IN_PROMPT,
             0,
         );
     } catch (error) {
         console.warn('[Wheel of Fortune] v1.5 character hint failed', error);
-        // Leave the older state.js hint as a fallback.
         updateCharacterHint();
     }
 }
@@ -98,7 +97,7 @@ function exportActivePreset() {
     const payload = {
         format: 'sillytavern-wheel-preset',
         schemaVersion: 1,
-        extensionVersion: '1.5.2',
+        extensionVersion: '1.5.4',
         exportedAt: new Date().toISOString(),
         preset: {
             name: active.name,
@@ -135,28 +134,54 @@ async function importPresetFile(file) {
     setTimeout(() => location.reload(), 600);
 }
 
+function updateLorebookHelpToNativeFormat(root) {
+    const taggedOption = root.querySelector('#wof-lorebook-mode option[value="tagged"]');
+    if (taggedOption) taggedOption.textContent = 'Recommended — WheelOfFortune / [WHEEL] entries only';
+
+    const paragraphs = [...root.querySelectorAll('p')];
+    const format = paragraphs.find(p => /Official v1\.[34] format/i.test(p.textContent || ''));
+    if (format) {
+        format.innerHTML = '<b>Official v1.5.4 format:</b> keep Name/Comment readable and place wheel metadata in SillyTavern <b>Primary Keywords</b>. Legacy bracket metadata remains supported.';
+        const examples = format.nextElementSibling;
+        if (examples?.classList.contains('wof-code-help')) {
+            examples.innerHTML = [
+                '<code>Name: Truth question · Keywords: WheelOfFortune · wof:id=truth_01 · wof:weight=4 · wof:min=1 · wof:max=3</code>',
+                '<code>Name: Reveal a secret · Keywords: WheelOfFortune · wof:id=secret_01 · wof:weight=2 · wof:min=2 · wof:max=5 · wof:cooldown=2</code>',
+                '<code>Name: Major plot event · Keywords: WheelOfFortune · wof:id=plot_01 · wof:level=5 · wof:once</code>',
+            ].join('<br>');
+        }
+    }
+
+    for (const p of paragraphs) {
+        const text = p.textContent || '';
+        if (/^Persistence:/i.test(text.trim())) {
+            p.innerHTML = '<b>Persistence:</b> no persistence keyword = stays. <code>wof:cooldown=N</code> = temporarily unavailable for N completed spins. <code>wof:once</code> = removed for the current preset/chat after it wins.';
+        } else if (/^Stable IDs:/i.test(text.trim())) {
+            p.innerHTML = '<b>Stable IDs:</b> <code>wof:id=...</code> is strongly recommended; e.g. <code>studio_category_01</code>. Legacy <code>[id=...]</code> is accepted.';
+        } else if (/^Supported metadata:/i.test(text.trim())) {
+            p.innerHTML = 'Primary Keywords: <code>WheelOfFortune</code>, <code>wof:id=...</code>, <code>wof:preset=...</code>, <code>wof:weight=...</code>, <code>wof:min=...</code>, <code>wof:max=...</code>, <code>wof:level=...</code>, <code>wof:cooldown=...</code>, <code>wof:once</code>.';
+        }
+    }
+}
+
 function injectV15Ui() {
     if (document.getElementById('wof-v15-ux')) return;
     const root = document.querySelector('#wof-settings .inline-drawer-content');
     if (!root) return;
 
-    root.querySelectorAll('p').forEach(p => {
-        if (/Official v1\.[34] format/i.test(p.textContent || '')) {
-            p.innerHTML = '<b>Official v1.5 format:</b> wheel metadata belongs in the Lorebook Comment/Title (or keys), while Content contains only the roleplay instruction. Optional <code>[preset=Name]</code> routes entries to named presets.';
-        }
-    });
+    updateLorebookHelpToNativeFormat(root);
 
     root.insertAdjacentHTML('beforeend', `
       <div id="wof-v15-ux">
         <hr>
-        <h4>🧠 Character tool-call flow — v1.5</h4>
+        <h4>🧠 Character tool-call flow — v1.5.4</h4>
         <label class="checkbox_label"><input id="wof-hide-trigger-tokens" type="checkbox"><span>Hide wheel trigger tokens from chat after detection</span></label>
         <p class="wof-muted">Recommended. Technical tokens such as <code>[[SPIN_WHEEL preset="Secrets"]]</code> are removed from the stored/rendered message after the extension catches them.</p>
         <label class="checkbox_label"><input id="wof-auto-continue-character" type="checkbox"><span>Automatically generate the character's follow-up after a character-triggered spin</span></label>
         <label for="wof-auto-continue-delay">Delay after result reveal before continuing (seconds)</label>
         <input id="wof-auto-continue-delay" class="text_pole" type="number" min="0" max="3" step="0.1">
-        <p class="wof-muted"><b>Hard loop guard:</b> after a character invokes the wheel, another automatic character wheel trigger is blocked until the user sends a new message. This guard is always enabled.</p>
-        <p class="wof-muted"><b>Self-contained character presets:</b> if an embedded Character Book explicitly contains <code>[WHEEL] [preset=Studio] ...</code>, a character-triggered <code>[[SPIN_WHEEL preset="Studio"]]</code> can create that named preset automatically on first use.</p>
+        <p class="wof-muted"><b>Hard loop guard:</b> after a character invokes the wheel, another automatic character wheel trigger is blocked until the user sends a new message.</p>
+        <p class="wof-muted"><b>Character Book format:</b> use a clean Name such as <code>Surprise Category</code> and Primary Keywords such as <code>WheelOfFortune</code>, <code>wof:preset=Studio</code>, <code>wof:id=studio_01</code>, <code>wof:weight=5</code>.</p>
 
         <hr>
         <h4>📦 Preset import / export</h4>
@@ -203,7 +228,7 @@ export async function renderV15Diagnostics(showToast = false) {
     }
     const cooling = Object.values(getCooldownMap()).filter(until => Number(until) > progress.spins).length;
     const rows = [
-        ['Extension', 'v1.5.2'],
+        ['Extension', 'v1.5.4'],
         ['Active preset', getActivePreset()?.name || 'None'],
         ['Source', sourceLabel()],
         ['Level / completed spins', `${getActiveLevel()} / ${progress.spins}`],

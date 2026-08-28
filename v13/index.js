@@ -6,7 +6,10 @@ import {
     getPresets, getProgress, getState, persist, renderProgressUi, resolvePreset, selectPreset,
     setCurrentLevel, updateCharacterHint,
 } from './state.js';
-import { countWheelTriggers, parseControlOptions, shouldBlockCharacterTrigger, stripWheelTriggerTokens } from './core.js';
+import {
+    characterKeywordsDeclarePreset, countWheelTriggers, parseControlOptions,
+    shouldBlockCharacterTrigger, stripWheelTriggerTokens,
+} from './core.js';
 import { getRawSourceEntries, hasCharacterWheelEntries, validateCurrentSource } from './lorebook.js';
 import { installAudioUnlock } from './audio.js';
 import { bindSettingsUi } from './settings.js';
@@ -24,9 +27,17 @@ function messageFingerprint(message, index) {
     return `${index}:${message?.is_user ? 'u' : 'a'}:${String(message?.mes ?? '')}`;
 }
 
+function rawEntryKeys(entry) {
+    return Array.isArray(entry?.key) ? entry.key : (Array.isArray(entry?.keys) ? entry.keys : (entry?.key ? [entry.key] : []));
+}
+
 function rawEntryMetadataText(entry) {
-    const keys = Array.isArray(entry?.key) ? entry.key : (Array.isArray(entry?.keys) ? entry.keys : (entry?.key ? [entry.key] : []));
-    return `${String(entry?.comment ?? entry?.name ?? '')} ${keys.join(' ')}`;
+    const keys = rawEntryKeys(entry);
+    return [...new Set([
+        String(entry?.comment ?? ''),
+        String(entry?.name ?? ''),
+        ...keys.map(String),
+    ].map(value => value.trim()).filter(Boolean))].join(' ');
 }
 
 function normalizePresetToken(value) {
@@ -39,6 +50,11 @@ async function characterBookDeclaresPreset(presetName) {
     const raw = await getRawSourceEntries('character');
     return raw.rawEntries.some(entry => {
         if (!entry || entry.disable === true || entry.enabled === false) return false;
+
+        // v1.5.4 preferred SillyTavern-native Primary Keyword format.
+        if (characterKeywordsDeclarePreset(rawEntryKeys(entry), target)) return true;
+
+        // Backward-compatible bracket format in Name/Comment/keys.
         const text = rawEntryMetadataText(entry);
         if (!/\[\s*WHEEL\s*\]/i.test(text)) return false;
         for (const match of text.matchAll(/\[\s*preset\s*=\s*([^\]]+)\]/gi)) {
@@ -158,8 +174,8 @@ async function inspectLatestMessage({ allowUser = false } = {}) {
             if (requestedPreset && !existingPreset) {
                 // Self-contained character cards may define a wheel family entirely inside their
                 // Character Book. Only auto-create a named preset when the book explicitly routes
-                // at least one [WHEEL] entry to that exact [preset=Name]. Shared entries alone do
-                // not authorize arbitrary preset creation.
+                // at least one wheel entry to that exact preset. Shared entries alone do not
+                // authorize arbitrary preset creation.
                 const declaredByCharacter = await characterBookDeclaresPreset(requestedPreset);
                 if (declaredByCharacter) {
                     const created = createPreset(requestedPreset, { cloneCurrent: true });
@@ -191,8 +207,6 @@ async function inspectLatestMessage({ allowUser = false } = {}) {
     if (!result) return;
 
     if (triggeredByCharacter) {
-        // Hard anti-loop rule: an automatically continued character cannot launch another wheel
-        // until a real user turn occurs. The blocked token is still cleaned from the message.
         autoTriggerLockedUntilUser = true;
         setLoopGuardLocked(true);
         await continueAfterCharacterSpin();
@@ -331,7 +345,7 @@ jQuery(async () => {
             setRuntimeStatus({ lastTrigger: 'None yet in this chat', lastContinuation: 'Idle', lastCleanup: 'None yet' });
         });
 
-        console.info('[Wheel of Fortune] Extension v1.5.2 loaded');
+        console.info('[Wheel of Fortune] Extension v1.5.4 loaded');
     } catch (error) {
         console.error('[Wheel of Fortune] Fatal initialization error', error);
         toastr.error('Wheel of Fortune failed to initialize.', 'Wheel of Fortune');

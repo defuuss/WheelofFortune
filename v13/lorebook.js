@@ -2,6 +2,7 @@ import {
     clampNumber, clampWeight, esc, getActiveLevel, getActivePresetName, getCooldownMap,
     getPresets, getProgress, getRemovedIds, getState, isRemoved, normalizeEntry, getContext,
 } from './state.js';
+import { parseWheelKeywordMetadata } from './core.js';
 
 const STABLE_ID_RE = /^[A-Za-z0-9_.:-]{1,64}$/;
 const META_TAG_RE = /\[(wheel|once|id|weight|level|min|max|minlevel|maxlevel|cooldown|preset)(?:\s*=\s*([^\]]+))?\]/gi;
@@ -20,23 +21,46 @@ function rawEntryEnabled(entry) {
     return true;
 }
 
+function addMetaTag(tags, name, value) {
+    const key = String(name).toLowerCase();
+    if (!tags[key]) tags[key] = [];
+    const normalized = value === true ? true : String(value).trim();
+    if (!tags[key].some(existing => String(existing).toLowerCase() === String(normalized).toLowerCase())) {
+        tags[key].push(normalized);
+    }
+}
+
 function parseRawMeta(entry) {
     const keys = entryKeys(entry);
-    const comment = String(entry?.comment ?? entry?.name ?? '');
-    const haystack = `${comment} ${keys.join(' ')}`;
+    const name = String(entry?.name ?? '');
+    const comment = String(entry?.comment ?? '');
+    const metadataFields = [...new Set([comment, name, ...keys].map(value => String(value ?? '').trim()).filter(Boolean))];
+    const haystack = metadataFields.join(' ');
     const tags = {};
-    for (const m of haystack.matchAll(META_TAG_RE)) {
-        const name = m[1].toLowerCase();
-        if (!tags[name]) tags[name] = [];
-        tags[name].push(m[2] === undefined ? true : String(m[2]).trim());
+
+    // Legacy / portable bracket syntax can live in Comment, Name, or keys.
+    for (const field of metadataFields) {
+        for (const m of field.matchAll(META_TAG_RE)) {
+            addMetaTag(tags, m[1], m[2] === undefined ? true : String(m[2]).trim());
+        }
     }
+
+    // v1.5.4 native SillyTavern syntax uses Primary Keywords so the visible entry
+    // Name/Comment can stay clean. Example: WheelOfFortune, wof:preset=Studio,
+    // wof:id=studio_01, wof:weight=5, wof:min=1, wof:max=5.
+    const keywordTags = parseWheelKeywordMetadata(keys);
+    for (const [key, values] of Object.entries(keywordTags)) {
+        for (const value of values) addMetaTag(tags, key, value);
+    }
+
     return {
         haystack,
+        name,
         comment,
         keys,
         tags,
-        first: name => tags[name]?.[0],
-        has: name => Boolean(tags[name]?.length),
+        first: tagName => tags[tagName]?.[0],
+        has: tagName => Boolean(tags[tagName]?.length),
     };
 }
 
@@ -75,16 +99,16 @@ function normalizeRawEntry(raw, sourceName) {
     const presetNames = parsePresetNames(meta.tags.preset || []);
 
     if (idRaw === true || (stableId && !STABLE_ID_RE.test(stableId))) {
-        add('error', '[id=...] must be 1–64 characters using letters, numbers, _, ., :, or -.');
+        add('error', 'Wheel id must be 1–64 characters using letters, numbers, _, ., :, or -.');
     }
-    if (meta.tags.wheel?.some(v => v !== true)) add('warning', '[WHEEL] is a flag and should not have a value.');
-    if (meta.tags.once?.some(v => v !== true)) add('warning', '[once] is a flag and should not have a value.');
-    if (meta.tags.preset?.some(v => v === true || !cleanMetaString(v))) add('error', '[preset=...] requires a preset name.');
+    if (meta.tags.wheel?.some(v => v !== true)) add('warning', 'Wheel marker is a flag and should not have a value.');
+    if (meta.tags.once?.some(v => v !== true)) add('warning', 'One-shot marker is a flag and should not have a value.');
+    if (meta.tags.preset?.some(v => v === true || !cleanMetaString(v))) add('error', 'Preset metadata requires a preset name.');
     for (const name of ['id', 'weight', 'level', 'min', 'max', 'minlevel', 'maxlevel', 'cooldown']) {
-        if ((meta.tags[name]?.length || 0) > 1) add('error', `Metadata [${name}=...] is defined more than once.`);
+        if ((meta.tags[name]?.length || 0) > 1) add('error', `Wheel metadata “${name}” is defined more than once.`);
     }
-    if (meta.has('min') && meta.has('minlevel')) add('error', 'Use only one of [min] or [minlevel].');
-    if (meta.has('max') && meta.has('maxlevel')) add('error', 'Use only one of [max] or [maxlevel].');
+    if (meta.has('min') && meta.has('minlevel')) add('error', 'Use only one of min or minlevel.');
+    if (meta.has('max') && meta.has('maxlevel')) add('error', 'Use only one of max or maxlevel.');
 
     const weightN = parseStrictNumber(meta.first('weight'), { min: 0.000001, max: 1000 });
     const levelN = parseStrictNumber(meta.first('level'), { integer: true, min: 1, max: 99 });
@@ -92,21 +116,24 @@ function normalizeRawEntry(raw, sourceName) {
     const maxN = parseStrictNumber(meta.first('max') ?? meta.first('maxlevel'), { integer: true, min: 1, max: 99 });
     const cooldownN = parseStrictNumber(meta.first('cooldown'), { integer: true, min: 0, max: 99 });
 
-    if (!weightN.valid) add('error', '[weight] must be a positive number up to 1000.');
-    if (!levelN.valid) add('error', '[level] must be an integer from 1 to 99.');
-    if (!minN.valid) add('error', '[min] must be an integer from 1 to 99.');
-    if (!maxN.valid) add('error', '[max] must be an integer from 1 to 99.');
-    if (!cooldownN.valid) add('error', '[cooldown] must be an integer from 0 to 99.');
-    if (levelN.present && (minN.present || maxN.present)) add('warning', 'Use either [level=N] or [min=N]/[max=N], not both. [level] takes precedence.');
-    if (meta.has('once') && cooldownN.present && cooldownN.value > 0) add('warning', '[once] makes [cooldown] irrelevant; cooldown will be ignored.');
+    if (!weightN.valid) add('error', 'weight must be a positive number up to 1000.');
+    if (!levelN.valid) add('error', 'level must be an integer from 1 to 99.');
+    if (!minN.valid) add('error', 'min must be an integer from 1 to 99.');
+    if (!maxN.valid) add('error', 'max must be an integer from 1 to 99.');
+    if (!cooldownN.valid) add('error', 'cooldown must be an integer from 0 to 99.');
+    if (levelN.present && (minN.present || maxN.present)) add('warning', 'Use either exact level or min/max, not both. Exact level takes precedence.');
+    if (meta.has('once') && cooldownN.present && cooldownN.value > 0) add('warning', 'One-shot makes cooldown irrelevant; cooldown will be ignored.');
 
     const minLevel = levelN.valid && levelN.present ? levelN.value : (minN.valid && minN.present ? minN.value : 1);
     const maxLevel = levelN.valid && levelN.present ? levelN.value : (maxN.valid && maxN.present ? maxN.value : 99);
-    if (minLevel > maxLevel) add('error', `[min=${minLevel}] cannot be higher than [max=${maxLevel}].`);
+    if (minLevel > maxLevel) add('error', `min=${minLevel} cannot be higher than max=${maxLevel}.`);
 
-    const rawTitle = meta.comment || meta.keys[0] || `Lorebook entry ${raw?.uid ?? raw?.id ?? ''}`;
-    const title = stripMetaTitle(rawTitle) || 'Untitled forfeit';
-    if (title === 'Untitled forfeit') add('warning', 'Entry has no clear visible title/comment.');
+    // Prefer the SillyTavern Name field, then Comment. Legacy bracket metadata is
+    // stripped, while v1.5.4 Primary Keyword metadata never pollutes the title.
+    const nameTitle = stripMetaTitle(meta.name);
+    const commentTitle = stripMetaTitle(meta.comment);
+    const title = nameTitle || commentTitle || `Lorebook entry ${raw?.uid ?? raw?.id ?? ''}` || 'Untitled forfeit';
+    if (!nameTitle && !commentTitle) add('warning', 'Entry has no clear visible Name/Comment title.');
     const description = String(raw?.content ?? '').trim();
     if (!description) add('warning', 'Entry has no Content/instruction.');
 
@@ -150,7 +177,7 @@ function validateParsedEntries(parsed, { requireTagged = true } = {}) {
         for (const presetName of item.entry.presetNames || []) {
             const p = presetName.toLowerCase();
             if (p !== '*' && p !== 'all' && !knownNames.has(p)) {
-                issues.push({ severity: 'warning', title: item.entry.title, id: item.entry.stableId || item.entry.sourceId, message: `Unknown wheel preset “${presetName}”. This entry will stay inactive until that preset exists.` });
+                issues.push({ severity: 'warning', title: item.entry.title, id: item.entry.stableId || item.entry.sourceId, message: `Unknown wheel preset “${presetName}”. This entry will stay inactive until that preset exists or is auto-created from the character card.` });
             }
         }
         const identityKey = String(item.entry.sourceId || '').toLowerCase();
@@ -166,7 +193,7 @@ function validateParsedEntries(parsed, { requireTagged = true } = {}) {
     for (const [identity, items] of identities) {
         if (items.length > 1) {
             for (const item of items) {
-                issues.push({ severity: 'error', title: item.entry.title, id: identity, message: 'Two wheel entries resolve to the same identity. Add unique [id=...] tags.' });
+                issues.push({ severity: 'error', title: item.entry.title, id: identity, message: 'Two wheel entries resolve to the same identity. Give every entry a unique wheel id.' });
                 item.entry.validationIssues.push({ severity: 'error', message: 'Duplicate wheel identity.' });
             }
         }
@@ -191,9 +218,6 @@ async function getCharacterBookSource() {
         };
     }
 
-    // Current SillyTavern may keep character cards shallow/lazy-loaded. The shallow
-    // representation does not reliably contain data.character_book, so load the full card
-    // before reading embedded wheel entries.
     try {
         await initial.unshallowCharacter?.(characterId);
     } catch (error) {
@@ -258,8 +282,8 @@ export async function loadParsedSource({ validateAll = false, sourceOverride = n
         const { relevant, issues } = validateParsedEntries(parsed, { requireTagged });
 
         if (validateAll && requireTagged) {
-            for (const item of parsed.filter(x => !x.entry.tagged && /\[(?:weight|level|min|max|cooldown|once|id|preset)\b/i.test(x.entry.rawHaystack || ''))) {
-                issues.push({ severity: 'warning', title: item.entry.title, id: item.entry.sourceId, message: 'Wheel metadata found but [WHEEL] is missing, so tagged-only mode ignores this entry.' });
+            for (const item of parsed.filter(x => !x.entry.tagged && /(?:\[(?:weight|level|min|max|cooldown|once|id|preset)\b|\bwof:(?:weight|level|min|max|cooldown|once|id|preset)\b)/i.test(x.entry.rawHaystack || ''))) {
+                issues.push({ severity: 'warning', title: item.entry.title, id: item.entry.sourceId, message: 'Wheel metadata was found but no WheelOfFortune / [WHEEL] marker exists, so tagged-only mode ignores this entry.' });
             }
         }
         return { displayName: raw.displayName, entries: relevant, issues };
@@ -292,8 +316,6 @@ export async function resolveEntries(options = {}) {
     const active = base.filter(e => cooldownUntil(e) <= spins);
     if (active.length) return active;
 
-    // Deadlock protection: if every otherwise-valid entry at this level is cooling down,
-    // temporarily release the entry/entries that would return first. State is not modified.
     const soonest = Math.min(...base.map(cooldownUntil));
     const fallback = base.filter(e => cooldownUntil(e) === soonest).map(e => ({ ...e, cooldownSafetyRelease: true }));
     console.warn('[Wheel of Fortune] Cooldown deadlock prevented; temporarily releasing', fallback.map(e => e.title));
@@ -311,7 +333,7 @@ export async function validateCurrentSource(showToast = true) {
         issues.push({ severity: 'warning', title: parsed.displayName, message: 'Import mode is “All enabled entries”. Tagged-only mode is safer because unrelated Lorebook entries cannot become wheel segments.' });
     }
     if (entries.length && !entries.some(e => e.stableId)) {
-        issues.push({ severity: 'warning', title: parsed.displayName, message: 'No active entry uses an explicit [id=...]. Native IDs work, but stable IDs are recommended for portable/shared wheel packs.' });
+        issues.push({ severity: 'warning', title: parsed.displayName, message: 'No active entry uses an explicit stable wheel id. Use wof:id=... (recommended) or legacy [id=...].' });
     }
     if (!entries.length && s.source !== 'manual') {
         issues.push({ severity: 'error', title: presetName, message: `No Lorebook entries are shared or routed to preset “${presetName}”.` });

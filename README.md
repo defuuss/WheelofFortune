@@ -2,13 +2,13 @@
 
 A cinematic **Wheel of Fortune / Wheel of Forfeits** extension for [SillyTavern](https://github.com/SillyTavern/SillyTavern).
 
-The wheel can be spun manually, from STscript, or intentionally by the character. It supports weighted outcomes, named presets, Lorebook/Character Book entries, secrecy modes, adaptive intensity, cooldowns, one-shot results, sound effects and automatic character continuation.
+Spin manually, from STscript, or let a character deliberately call the wheel as a tool. Supports weighted outcomes, named wheels, embedded Character Books, secrecy modes, adaptive levels, cooldowns, one-shot results, sound effects, automatic character continuation and a floating preset picker.
 
 ## Quick start
 
-### 1. Install
+### Install
 
-In SillyTavern's extension installer use:
+Install this repository from SillyTavern's extension installer:
 
 ```text
 https://github.com/defuuss/WheelofFortune
@@ -16,137 +16,174 @@ https://github.com/defuuss/WheelofFortune
 
 Reload SillyTavern and open **Extensions → Wheel of Fortune**.
 
-### 2. Choose a forfeit source
-
-Use one of:
-
-- **Manual entries**
-- **Selected Lorebook / World Info**
-- **Active character card Lorebook / Character Book**
-
-For Lorebooks, use **Only entries marked `[WHEEL]`**.
-
-Character-triggered spins can also auto-detect valid `[WHEEL]` entries in the active character's embedded Character Book.
-
-### 3. Test the wheel
+### Test
 
 ```text
 /wheel
 ```
 
-Or let the character deliberately invoke it:
+A character can deliberately call it with:
 
 ```text
 Fine. We'll let the wheel decide.
 [[SPIN_WHEEL]]
 ```
 
-With v1.5's default settings, the technical trigger is removed from the stored/rendered message after detection, the wheel spins once, the result is injected into context, and SillyTavern automatically generates a fresh character message that continues from the real result.
+or a named wheel:
 
-## What v1.5 adds
+```text
+[[SPIN_WHEEL preset="Studio"]]
+```
 
-- 🫥 **Invisible trigger cleanup** — detected wheel tokens are removed from the chat message and later model context.
-- 🛑 **Hard anti-loop protection** — an automatically continued character cannot trigger another wheel until the user sends a new message.
-- 🔄 **Configurable automatic continuation** — enable/disable it and choose a 0–3 second post-result delay.
-- 📦 **Preset import/export** — share named wheels as `.wheel.json` files without exporting chat state.
-- 🩺 **Diagnostics panel** — active preset, source, level, eligible entries, cooldowns, one-shot removals, trigger state and continuation status.
-- 🧪 **Real unit tests in GitHub Actions** for trigger parsing/cleanup, loop-guard behavior and preset import validation.
+For a character-triggered spin, the trigger is treated as a tool-call boundary: the token is normally removed from chat, one real wheel result is selected, its instruction is injected into context, and SillyTavern can automatically generate a fresh character response that acts on it.
 
-### v1.5.1 / v1.5.2 Character Book improvements
+## v1.5.4: SillyTavern-native Character Book format
 
-- Character cards are fully loaded before their embedded `character_book.entries` are read, fixing lazy/shallow-card loading problems.
-- Character-triggered spins automatically prefer matching embedded `[WHEEL]` entries when they exist.
-- **v1.5.2 supports self-contained named presets.** If a card explicitly contains `[WHEEL] [preset=Studio] ...` and the character invokes `[[SPIN_WHEEL preset="Studio"]]`, the extension can create `Studio` automatically on first use. The user does not have to manually create that preset first.
-- Auto-creation only happens for an explicitly declared `[preset=Name]`; shared entries without a preset tag cannot create arbitrary preset names.
+For **new Character Book wheel entries**, keep the visible Name/Comment clean and put technical wheel metadata in SillyTavern's **Primary Keywords**.
 
-### v1.5.3 floating wheel picker
+### Name / Comment
 
-Clicking the floating **🎡 button on the right side** now opens a wheel selector instead of immediately opening only the currently active preset.
+```text
+Surprise Category
+```
+
+### Primary Keywords
+
+```text
+WheelOfFortune
+wof:preset=Studio
+wof:id=studio_category_01
+wof:weight=5
+wof:min=1
+wof:max=5
+```
+
+### Content
+
+```text
+Switch the next question or challenge to a fitting surprise category and continue naturally.
+```
+
+This maps directly to a Character Card v3 entry's standard `keys` array and keeps the SillyTavern Lorebook editor readable.
+
+### Native metadata
+
+| Primary Keyword | Meaning |
+| --- | --- |
+| `WheelOfFortune` | Marks the entry as a wheel segment |
+| `wof:id=secret_01` | Stable identity; strongly recommended |
+| `wof:preset=Studio` | Route to a named wheel |
+| `wof:weight=3` | Relative selection weight |
+| `wof:min=2` | First eligible level |
+| `wof:max=4` | Last eligible level |
+| `wof:level=3` | Exact eligible level |
+| `wof:cooldown=2` | Leave for two completed spins, then return |
+| `wof:once` | Remove after winning for this preset + chat |
+
+Multiple wheel routing is supported:
+
+```text
+wof:preset=Studio,Fates
+```
+
+No `wof:preset=...` means the entry is shared by all named wheels using that Character Book.
+
+### Legacy syntax is still supported
+
+Existing cards do **not** need to be rewritten immediately. The older bracket format remains compatible:
+
+```text
+[WHEEL] [preset=Studio] [id=studio_01] [weight=3] [min=1] [max=5] Studio Challenge
+```
+
+The extension can read legacy metadata from Name, Comment or keys. The native Primary Keyword format is simply the recommended format for new cards because it is much cleaner in SillyTavern's UI.
+
+## Floating wheel picker
+
+Click the floating **🎡 button on the right side** to choose a wheel instead of immediately opening only the active preset.
 
 The picker combines:
 
-- named presets already configured in the extension;
-- preset names discovered from the active character's embedded `[WHEEL] [preset=Name]` entries.
+- presets already configured in the extension;
+- named wheels discovered from the active character's embedded Character Book.
 
-Character-defined wheels are labelled **Character**. If a wheel exists only in the character card, it is also labelled **New** and is created automatically when you open it. If a configured preset and a Character Book preset use the same name, the picker uses the character's matching forfeits for that opening.
-
-## Core features
-
-- 🎡 Large animated weighted wheel with long suspense spins.
-- 🎯 One deliberate spin per wheel opening; no post-result “Spin again”.
-- 🎛️ Multiple named wheel presets.
-- 🧭 Floating right-side wheel picker for configured + character-defined wheels.
-- 🔊 Browser-generated spin sounds and synchronized pointer ticks.
-- 🎭 Full, hidden-wheel, hidden-result and Blind visibility modes.
-- ⚖️ Weighted forfeits.
-- 🔁 Per-entry cooldowns.
-- 1️⃣ Per-chat/per-preset one-shot results.
-- 📈 Adaptive intensity levels.
-- 📚 Lorebook and embedded Character Book support.
-- 🆔 Stable `[id=...]` metadata.
-- 🧭 `[preset=Name]` Lorebook routing.
-- 🛡️ Lorebook validation and level coverage preview.
-- 🧯 Cooldown deadlock protection.
-- 🎨 Themes, colors, size, direction and probability labels.
-
-## Character-triggered tool flow
-
-A character can use:
+Example:
 
 ```text
-[[SPIN_WHEEL]]
-[[SPIN_WHEEL preset="Secrets"]]
-[[SPIN_WHEEL preset="Studio"]]
-[[SPIN_WHEEL preset="Consequences" mode=hidden-result]]
-[[SPIN_WHEEL preset="Chaos" mode=blind level=4 seconds=12]]
+🎡 Choose a wheel
+
+Studio        Character · New
+Fates         Character · Preset
+Default       Active · Preset
+Dares         Preset
 ```
 
-The intended lifecycle is:
+A Character Book wheel that does not yet exist as an extension preset can be created automatically on first open. The same can happen when the character deliberately requests an explicitly declared wheel such as `Studio`.
+
+## Self-contained character cards
+
+A character can ship all of its wheel definitions inside its own Character Book.
+
+For example, several entries may contain:
+
+```text
+WheelOfFortune
+wof:preset=Studio
+...
+```
+
+and others:
+
+```text
+WheelOfFortune
+wof:preset=Fates
+...
+```
+
+Then the character can use:
+
+```text
+[[SPIN_WHEEL preset="Studio"]]
+[[SPIN_WHEEL preset="Fates"]]
+```
+
+If the named preset is not configured yet, Wheel of Fortune checks the embedded Character Book. It only auto-creates a missing preset when that exact name is explicitly declared by a valid wheel entry; shared entries cannot authorize arbitrary names.
+
+Modern SillyTavern may keep character cards lazy/shallow-loaded, so the extension explicitly loads the complete character before reading `character_book.entries`.
+
+## Character-triggered tool flow
 
 ```text
 character message
       ↓
-wheel trigger at end of message
+[[SPIN_WHEEL ...]] at end
       ↓
-trigger removed from chat
+technical trigger removed
       ↓
 embedded Character Book checked
       ↓
-requested embedded preset auto-created if explicitly declared and missing
+requested Character wheel created if needed
       ↓
 visual wheel spins once
       ↓
-real result injected into model context
+real entry Content injected into model context
       ↓
 wheel closes
       ↓
 fresh character message generated automatically
 ```
 
-The character must **not invent the result in the triggering message**. The trigger is a tool-call boundary and should be the last meaningful content in that message.
+The triggering character message must **not invent the result**. The result does not exist until the extension selects it.
 
-The anti-loop guard then blocks another automatic character-triggered wheel until the user speaks again.
+A hard anti-loop guard prevents the automatically generated follow-up from launching another automatic wheel until the user sends a new message.
 
-If automatic generation fails, the selected result remains queued for the next manual generation instead of being lost.
+If automatic generation fails, the selected result stays queued for the next manual generation instead of being discarded.
 
-## Floating wheel picker
+## One deliberate spin
 
-The floating right-side 🎡 button is intended for interactive selection. It does not immediately spin a wheel.
+A wheel opening resolves only one result. There is no post-result **Spin again** button.
 
-When clicked, it discovers the current choices and shows them in a compact menu:
-
-```text
-🎡 Choose a wheel
-
-Studio        Character · New
-Secrets       Character · Preset
-Default       Active · Preset
-Dares         Preset
-```
-
-Selecting a row opens that wheel. You then press the center **SPIN** button once.
-
-For a Character Book wheel that does not yet exist as an extension preset, the picker creates it by cloning the current presentation/audio/timing configuration and sets its source to the active character's Character Book. Its progress, cooldowns and `[once]` removals remain isolated by preset + chat.
+For manual use, close/reopen or choose another wheel from the floating picker when a separate spin is actually intended.
 
 ## Visibility modes
 
@@ -157,7 +194,75 @@ For a Character Book wheel that does not yet exist as an extension preset, the p
 | `hidden-result` | visible | hidden |
 | `blind` | hidden | hidden |
 
-Hidden results can still be sent privately to the character so it can act on them without revealing them to the user.
+A hidden result can still be injected privately so the character acts on it without exposing the selected outcome to the user.
+
+## Named presets
+
+Each preset can have its own:
+
+- forfeit source;
+- appearance/theme;
+- visibility mode;
+- spin and reveal timing;
+- adaptive-level settings;
+- audio settings.
+
+Cooldowns, one-shot removals, level and completed-spin count are isolated by **preset + chat**.
+
+## Persistence
+
+Repeatable:
+
+```text
+WheelOfFortune
+wof:id=truth_01
+wof:weight=4
+```
+
+Cooldown:
+
+```text
+WheelOfFortune
+wof:id=confession_01
+wof:cooldown=2
+```
+
+One-shot:
+
+```text
+WheelOfFortune
+wof:id=major_turn_01
+wof:once
+```
+
+Do not combine `wof:once` with `wof:cooldown=N`.
+
+## Adaptive levels
+
+Use either a range:
+
+```text
+wof:min=2
+wof:max=4
+```
+
+or an exact level:
+
+```text
+wof:level=3
+```
+
+Do not combine exact level with min/max on the same entry.
+
+For a healthy wheel, keep several repeatable entries available at every intended level. If every otherwise-valid entry happens to be on cooldown, the extension includes a safety release to prevent a deadlocked wheel.
+
+## Character Book activation
+
+Wheel-only entries may have normal SillyTavern context activation disabled. Wheel of Fortune reads enabled Character Book entries directly when constructing a wheel.
+
+The extension respects the entry's enabled/disabled state, then applies its own wheel marker, preset, level, cooldown and one-shot rules.
+
+This means ordinary non-wheel Character Book entries can safely remain alongside wheel entries when **tagged-only** import mode is used.
 
 ## Commands
 
@@ -165,88 +270,69 @@ Hidden results can still be sent privately to the character so it can act on the
 | --- | --- |
 | `/wheel` | Spin the active wheel |
 | `/wheel preset="Secrets"` | Spin an existing named preset |
-| `/wheel visibility=blind level=4 seconds=12` | One customized spin |
+| `/wheel visibility=blind level=4 seconds=12` | Customized manual spin |
 | `/wheel-open` | Open without spinning |
 | `/wheel-preset preset="Secrets"` | Select an existing preset |
-| `/wheel-presets` | List presets |
+| `/wheel-presets` | List configured presets |
 | `/wheel-level level=3` | Set current preset/chat level |
 | `/wheel-validate` | Validate current Lorebook source |
 
-Manual slash-command spins do **not** auto-create Character Book presets and do **not** automatically generate another character message. Self-contained preset creation is reserved for an intentional character trigger backed by an explicit `[preset=Name]` declaration in that character's embedded book, or for choosing that explicitly declared wheel from the floating picker.
+Manual slash-command spins do not automatically generate another character response. Automatic continuation is reserved for intentional character-triggered spins.
 
-## Lorebook basics
+## Validation
 
-One Lorebook entry = one wheel segment.
-
-Put metadata in **Comment / Title**:
+Use:
 
 ```text
-[WHEEL] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
+/wheel-validate
 ```
 
-Put only the actual roleplay instruction in **Content**:
+or **Validate / preview Lorebook** in extension settings.
 
-```text
-Reveal a believable secret that fits established characterization and the current scene. Continue naturally from the result.
-```
+The validator checks:
 
-Route an entry to a named preset:
+- malformed or duplicate stable IDs;
+- invalid weights;
+- level/range errors;
+- duplicate scalar metadata;
+- `once` + cooldown conflicts;
+- missing titles/content;
+- unknown preset routing;
+- levels with zero usable entries;
+- levels without repeatable baseline entries.
 
-```text
-[WHEEL] [preset=Studio] [id=studio_01] [weight=2] [min=1] [max=5] Studio challenge
-```
+Entries with validation errors do not enter the wheel.
 
-A card containing the entry above may intentionally call:
+## Audio
 
-```text
-[[SPIN_WHEEL preset="Studio"]]
-```
+Wheel audio is generated locally with the browser Web Audio API; there are no bundled MP3 dependencies.
 
-or the user can select **Studio** directly from the floating 🎡 picker.
+Features include:
 
-A shared entry simply omits `[preset=...]`.
+- spin-start/whir sound;
+- pointer ticks synchronized to the actual wheel rotation;
+- Classic, Soft and Wooden tick styles;
+- result/reveal sounds;
+- independent master/tick volume controls.
 
-Persistence:
+## Preset import / export
 
-```text
-(no persistence tag)  → stays on the wheel
-[cooldown=2]          → leaves for two completed spins, then returns
-[once]                → removed for this preset + this chat after winning
-```
+The active extension preset can be exported as `.wheel.json` and imported on another installation.
 
-See the full Lorebook guide for validation rules, IDs, levels and preset routing.
+Chat-specific runtime state is intentionally excluded:
 
-## Named presets and sharing
-
-Each preset can have its own source/manual entries, appearance, visibility, timing, adaptive settings and audio.
-
-Cooldowns, one-shot removals, level and completed-spin count are isolated by **preset + chat**.
-
-For a self-contained character card, explicitly route at least one embedded `[WHEEL]` entry to every preset name that the character may invoke. If that name does not yet exist, the extension can create it from a character trigger or from the floating picker by cloning the current wheel's presentation/timing/audio configuration and using the active Character Book as its source.
-
-v1.5 adds **Export active preset** and **Import preset** in settings. The export contains wheel configuration only; it deliberately excludes chat history, cooldown progress and one-shot state.
-
-## Diagnostics
-
-The diagnostics panel shows:
-
-- extension version;
-- active preset and source;
-- current level and completed spins;
-- currently eligible entry count;
-- active cooldown count;
+- history;
+- cooldown progress;
 - one-shot removals;
-- trigger-cleanup status;
-- automatic continuation state;
-- anti-loop guard state;
-- last trigger/continuation status.
+- per-chat spin count;
+- adaptive level progress.
 
-Use this before opening the browser console when troubleshooting.
+For fully portable character setups, embedding wheel entries directly in the Character Book is recommended.
 
 ## Documentation
 
-- **[Lorebook format & validator](docs/LOREBOOK.md)**
-- **[AI prompt for integrating the wheel into a character card](docs/CARD_INTEGRATION_PROMPT.md)**
+- **[Lorebook / Character Book format](docs/LOREBOOK.md)**
+- **[AI prompt for integrating a character card](docs/CARD_INTEGRATION_PROMPT.md)**
 - **[Troubleshooting](docs/TROUBLESHOOTING.md)**
 
 ## Development / validation
@@ -254,15 +340,15 @@ Use this before opening the browser console when troubleshooting.
 GitHub Actions checks:
 
 - `manifest.json` validity;
-- syntax of all runtime modules;
+- runtime JavaScript syntax;
 - manifest target files;
-- Node unit tests for critical v1.5 pure helpers.
+- Node unit tests for trigger parsing, anti-loop behavior, preset validation and native Character Book metadata parsing.
 
 The active runtime is under `v13/`; the directory name is retained for backward compatibility with the modular v1.3 architecture.
 
 ## Current version
 
-**v1.5.3**
+**v1.5.4**
 
 ## License
 

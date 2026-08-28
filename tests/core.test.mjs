@@ -2,8 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+    characterKeywordsDeclarePreset,
     countWheelTriggers,
     parseControlOptions,
+    parseWheelKeywordMetadata,
     shouldBlockCharacterTrigger,
     stripWheelTriggerTokens,
     uniquePresetName,
@@ -47,6 +49,37 @@ test('hard anti-loop guard blocks character trigger but not user turn', () => {
     assert.equal(shouldBlockCharacterTrigger({ locked: true, isUser: false }), true);
     assert.equal(shouldBlockCharacterTrigger({ locked: true, isUser: true }), false);
     assert.equal(shouldBlockCharacterTrigger({ locked: false, isUser: false }), false);
+});
+
+test('parses SillyTavern-native Primary Keyword wheel metadata', () => {
+    const tags = parseWheelKeywordMetadata([
+        'WheelOfFortune',
+        'wof:preset=Studio',
+        'wof:id=studio_category_01',
+        'wof:weight=5',
+        'wof:min=1',
+        'wof:max=5',
+        'wof:cooldown=2',
+        'wof:once',
+    ]);
+    assert.deepEqual(tags, {
+        wheel: [true],
+        preset: ['Studio'],
+        id: ['studio_category_01'],
+        weight: ['5'],
+        min: ['1'],
+        max: ['5'],
+        cooldown: ['2'],
+        once: [true],
+    });
+});
+
+test('native Character Book keywords explicitly declare a preset', () => {
+    const keys = ['WheelOfFortune', 'wof:preset=Studio,Fates', 'wof:id=test_01'];
+    assert.equal(characterKeywordsDeclarePreset(keys, 'Studio'), true);
+    assert.equal(characterKeywordsDeclarePreset(keys, 'fates'), true);
+    assert.equal(characterKeywordsDeclarePreset(keys, 'Chaos'), false);
+    assert.equal(characterKeywordsDeclarePreset(['wof:preset=Studio'], 'Studio'), false);
 });
 
 test('preset import envelope validates supported schema', () => {

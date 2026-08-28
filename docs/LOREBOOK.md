@@ -1,217 +1,222 @@
-# Wheel of Fortune v1.5 — Lorebook format
+# Wheel of Fortune v1.5.4 — Lorebook / Character Book format
 
-Wheel of Fortune can read forfeits from:
+Wheel of Fortune can read entries from a standalone SillyTavern **Lorebook / World Info** or from the active character card's embedded **Character Book**.
 
-- a standalone SillyTavern **Lorebook / World Info**; or
-- the active character card's embedded **Character Lorebook / Character Book**.
+For character cards, v1.5.4 recommends a format that maps directly to SillyTavern's own editor fields instead of putting technical metadata into the visible entry title.
 
-For character cards that should carry their own wheel, the embedded Character Lorebook source is recommended.
+## Recommended SillyTavern-native format
 
-## Safe default
+One Character Book entry = one wheel segment.
+
+### Name / Comment
+
+Keep this human-readable:
+
+```text
+Surprise Category
+```
+
+### Primary Keywords
+
+Add wheel metadata as separate keywords:
+
+```text
+WheelOfFortune
+wof:preset=Studio
+wof:id=studio_category_01
+wof:weight=5
+wof:min=1
+wof:max=5
+```
+
+### Content
+
+Put only the actionable instruction here:
+
+```text
+Switch the next question or challenge to a fitting surprise category already compatible with the established game rules. Announce it naturally and continue.
+```
+
+This keeps the SillyTavern Lorebook list readable while remaining fully portable in a Character Card v3 `keys` array.
+
+## Native keyword reference
+
+| Primary Keyword | Meaning |
+| --- | --- |
+| `WheelOfFortune` | Marks the entry as a wheel segment. |
+| `wof:id=secret_01` | Stable identity. Strongly recommended. |
+| `wof:preset=Secrets` | Route only to this named wheel preset. |
+| `wof:weight=3` | Positive relative selection weight. |
+| `wof:min=2` | First eligible level. |
+| `wof:max=4` | Last eligible level. |
+| `wof:level=3` | Eligible only at exactly level 3. |
+| `wof:cooldown=2` | Unavailable for the next two completed spins, then returns. |
+| `wof:once` | Remove after winning for the current preset + current chat. |
+
+Multiple preset names can be routed with:
+
+```text
+wof:preset=Secrets,Truths
+```
+
+No `wof:preset=...` keyword means the entry is shared by every preset using that Character Book.
+
+## Examples
+
+### Repeatable
+
+Name:
+
+```text
+Answer Honestly
+```
+
+Primary Keywords:
+
+```text
+WheelOfFortune
+wof:id=truth_01
+wof:weight=4
+wof:min=1
+wof:max=5
+```
+
+### Cooldown
+
+Name:
+
+```text
+Confession
+```
+
+Primary Keywords:
+
+```text
+WheelOfFortune
+wof:preset=Secrets
+wof:id=confession_01
+wof:weight=3
+wof:min=2
+wof:max=5
+wof:cooldown=2
+```
+
+### One-shot
+
+Name:
+
+```text
+Major Turning Point
+```
+
+Primary Keywords:
+
+```text
+WheelOfFortune
+wof:preset=Consequences
+wof:id=plot_01
+wof:weight=1
+wof:level=5
+wof:once
+```
+
+Do not combine `wof:once` with `wof:cooldown=N`. Do not combine `wof:level=N` with `wof:min=N` / `wof:max=N`.
+
+## Backward-compatible bracket format
+
+The older format remains fully supported:
+
+```text
+[WHEEL] [preset=Secrets] [id=secret_01] [weight=3] [min=2] [max=5] [cooldown=2] Reveal a secret
+```
+
+It may appear in Name, Comment, or keys. v1.5.4 strips this metadata from the wheel label.
+
+However, for new Character Books, the Primary Keyword format is recommended because SillyTavern otherwise displays the long metadata string as the entry title.
+
+Equivalent forms:
+
+| Legacy | Recommended v1.5.4 |
+| --- | --- |
+| `[WHEEL]` | `WheelOfFortune` |
+| `[preset=Studio]` | `wof:preset=Studio` |
+| `[id=studio_01]` | `wof:id=studio_01` |
+| `[weight=5]` | `wof:weight=5` |
+| `[min=1]` | `wof:min=1` |
+| `[max=5]` | `wof:max=5` |
+| `[level=3]` | `wof:level=3` |
+| `[cooldown=2]` | `wof:cooldown=2` |
+| `[once]` | `wof:once` |
+
+## SillyTavern activation settings
+
+Wheel entries do not need to participate in normal World Info activation. For embedded wheel-only entries it is reasonable to leave normal context activation disabled; the extension reads enabled Character Book entries directly when it needs to construct a wheel.
+
+The extension respects the entry's enabled/disabled state, but wheel eligibility is controlled by wheel metadata, preset, level, cooldown and one-shot state rather than normal keyword activation.
+
+## Tagged-only mode
 
 Use:
 
 ```text
-Import entries: Only entries marked [WHEEL]
+Only entries marked as Wheel entries
 ```
 
-Tagged-only mode prevents unrelated Lorebook entries from becoming wheel segments.
+A native entry is considered marked when its Primary Keywords include `WheelOfFortune`. A legacy entry is marked with `[WHEEL]`.
 
-## One Lorebook entry = one wheel segment
-
-Put the short visible wheel label and all metadata in **Comment / Title**.
-
-Put only the actionable roleplay instruction in **Content**.
-
-Example Comment / Title:
-
-```text
-[WHEEL] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
-```
-
-Example Content:
-
-```text
-Reveal a believable personal secret that fits established characterization and the current scene. Do not contradict known lore. Continue naturally from this result.
-```
-
-The wheel displays only:
-
-```text
-Reveal a secret
-```
-
-The metadata is stripped from the visible label.
-
-## Supported metadata
-
-| Tag | Meaning |
-| --- | --- |
-| `[WHEEL]` | Marks the entry as a wheel segment. Always recommended. |
-| `[id=secret_01]` | Stable identity used for cooldown and one-shot tracking. Strongly recommended. |
-| `[preset=Secrets]` | Route the entry only to the named preset. Optional. |
-| `[weight=3]` | Positive relative selection weight. |
-| `[min=2]` | First eligible intensity level. |
-| `[max=4]` | Last eligible intensity level. |
-| `[level=3]` | Eligible only at exactly level 3. |
-| `[cooldown=2]` | Hide for the next two completed spins of that preset, then return. |
-| `[once]` | Remove after winning for the current preset + current chat. |
-
-Aliases `[minlevel=N]` and `[maxlevel=N]` are accepted, but `[min=N]` / `[max=N]` are preferred.
+This prevents ordinary Character Book lore from becoming wheel segments.
 
 ## Stable IDs
 
-Give every wheel entry a stable ID:
+Every wheel segment should have a unique stable ID such as:
 
 ```text
-[id=truth_01]
-[id=challenge_social_02]
-[id=plot_twist_01]
+wof:id=studio_category_01
+wof:id=fates_debt_01
+wof:id=secret_03
 ```
 
-Rules:
+Use 1–64 characters containing letters, numbers, `_`, `-`, `.`, or `:`. Keep the same ID when renaming the visible entry.
 
-- 1–64 characters;
-- letters, numbers, `_`, `-`, `.`, and `:` only;
-- no spaces;
-- unique within the wheel source;
-- keep the same ID if the visible title changes.
+## Self-contained named wheels
 
-Good:
+A character can ship its own wheel families entirely inside its Character Book.
+
+For example, several entries can contain:
 
 ```text
-[WHEEL] [id=secret_01] [weight=3] Reveal a secret
+WheelOfFortune
+wof:preset=Studio
+...
 ```
 
-Later you may rename only the visible title:
+and others:
 
 ```text
-[WHEEL] [id=secret_01] [weight=3] Reveal your biggest secret
+WheelOfFortune
+wof:preset=Fates
+...
 ```
 
-The extension still treats it as the same item.
+The floating 🎡 picker discovers these names. If a Character Book preset is not yet configured in the extension, the picker or an intentional character trigger can create it on first use.
 
-## Named preset routing
-
-Suppose these presets exist:
+Character trigger:
 
 ```text
-General
-Truths
-Secrets
-Consequences
+[[SPIN_WHEEL preset="Studio"]]
 ```
 
-Only on `Secrets`:
+## Levels and persistence
 
-```text
-[WHEEL] [preset=Secrets] [id=secret_01] [weight=3] Reveal a secret
-```
+State is isolated by **preset + chat**.
 
-On both `Secrets` and `Truths`:
+- no cooldown/once keyword → stays available;
+- `wof:cooldown=2` → leaves for two completed spins, then returns;
+- `wof:once` → removed for that preset in the current chat after winning.
 
-```text
-[WHEEL] [preset=Secrets,Truths] [id=confession_01] [weight=2] Confession
-```
+For each intended level, keep at least 2–3 repeatable baseline entries. The extension includes cooldown deadlock protection, but a healthy pool gives better results.
 
-Shared by every preset using this Lorebook:
-
-```text
-[WHEEL] [id=lucky_escape_01] [weight=1] Lucky escape
-```
-
-No `[preset=...]` means shared.
-
-Preset matching is case-insensitive. The validator warns about unknown preset names.
-
-## Persistence rules
-
-### Repeatable — stays on the wheel
-
-```text
-[WHEEL] [id=truth_01] [weight=4] [min=1] [max=5] Answer honestly
-```
-
-No `[once]` and no `[cooldown]` means the item remains available after winning.
-
-### Cooldown — leaves temporarily
-
-```text
-[WHEEL] [preset=Secrets] [id=confession_01] [weight=3] [min=2] [max=5] [cooldown=2] Confession
-```
-
-After winning, it is unavailable for the next two completed spins of **Secrets in this chat**, then returns.
-
-### One-shot — removed for this preset/chat
-
-```text
-[WHEEL] [preset=Consequences] [id=plot_01] [weight=1] [level=5] [once] Major turning point
-```
-
-After winning, it disappears for **Consequences in the current chat**. Other presets and chats have independent state.
-
-## Do not combine contradictory metadata
-
-Avoid:
-
-```text
-[once] [cooldown=3]
-```
-
-Use one or the other.
-
-Avoid:
-
-```text
-[level=3] [min=1] [max=5]
-```
-
-Use either an exact level or a range.
-
-Avoid duplicate scalar metadata:
-
-```text
-[weight=2] [weight=5]
-```
-
-## Adaptive five-level example
-
-```text
-[WHEEL] [preset=General] [id=light_01] [weight=5] [min=1] [max=2] Light challenge
-[WHEEL] [preset=General] [id=choice_01] [weight=4] [min=1] [max=5] Make a choice
-[WHEEL] [preset=Secrets] [id=truth_01] [weight=5] [min=1] [max=5] Answer honestly
-[WHEEL] [preset=Secrets] [id=secret_01] [weight=3] [min=2] [max=4] [cooldown=2] Reveal a secret
-[WHEEL] [preset=Consequences] [id=complication_01] [weight=2] [min=3] [max=5] [cooldown=2] Complication
-[WHEEL] [preset=Consequences] [id=plot_01] [weight=1] [level=5] [once] Major turning point
-[WHEEL] [id=escape_01] [weight=2] [min=1] [max=5] Lucky escape
-```
-
-The final `Lucky escape` is shared because it has no preset tag.
-
-A practical five-level interpretation:
-
-| Level | Typical purpose |
-| ---: | --- |
-| 1 | introductory / light |
-| 2 | more personal / consequential |
-| 3 | stronger scene changes |
-| 4 | rare / dramatic |
-| 5 | exceptional / major / one-shot |
-
-These are design suggestions, not hard-coded meanings.
-
-## Keep every level usable
-
-For each intended level of each preset:
-
-- include several eligible entries;
-- include at least 2–3 repeatable baseline entries;
-- add cooldown entries for variety;
-- use `[once]` only for genuinely non-repeatable outcomes.
-
-If every otherwise-valid entry is cooling down, the extension temporarily releases the entry or entries due to return first. This prevents cooldown deadlock, but a healthy baseline is still better design.
-
-## Validator
+## Validation
 
 Run:
 
@@ -219,85 +224,15 @@ Run:
 /wheel-validate
 ```
 
-or click **Validate / preview Lorebook**.
+or use **Validate / preview Lorebook** in settings.
 
-Validation covers:
+The validator checks stable IDs, duplicate metadata, weights, levels, ranges, cooldown/once conflicts, missing titles/content, preset routing and level coverage.
 
-- malformed or duplicate stable IDs;
-- unknown preset names;
-- invalid or non-positive weights;
-- invalid level values;
-- `min > max`;
-- duplicate metadata;
-- `[level]` mixed with `[min]/[max]`;
-- `[once]` mixed with cooldown;
-- missing Content/title;
-- missing `[WHEEL]` in tagged-only mode when wheel-like metadata is present;
-- active-preset levels with zero valid entries;
-- active-preset levels without repeatable baseline entries.
+## Character-triggered result flow
 
-Entries with validation **errors** do not enter the active wheel. Warnings do not block them.
+When the character emits a valid trigger at the end of its message, Wheel of Fortune resolves one real result, injects that entry's Content into model context and can automatically generate a fresh character message that acts on it.
 
-Validate each preset separately:
-
-```text
-/wheel-preset preset="Secrets"
-/wheel-validate
-
-/wheel-preset preset="Consequences"
-/wheel-validate
-```
-
-## Character-triggered wheel and Lorebook Content
-
-When a character deliberately emits:
-
-```text
-[[SPIN_WHEEL preset="Secrets"]]
-```
-
-v1.5 normally:
-
-1. catches and removes the technical trigger token from chat;
-2. spins once;
-3. injects the real selected Lorebook Content into model context;
-4. generates a fresh character message automatically.
-
-Therefore Content should be directly actionable. It should describe what the character should do after the result is selected.
-
-Good Content:
-
-```text
-Reveal a believable secret that fits established characterization and the current scene. Continue naturally from the result.
-```
-
-Avoid Content that asks the model to choose another wheel result or emit another trigger.
-
-## Character Book support
-
-Set Source to:
-
-```text
-Active character card Lorebook
-```
-
-The extension reads the active character's embedded `character_book.entries` directly.
-
-Non-wheel entries may remain in the same Character Book safely when tagged-only import mode is enabled.
-
-## Preset import/export in v1.5
-
-Preset export creates a `.wheel.json` file containing the active preset's configuration.
-
-It intentionally does **not** export per-chat runtime state:
-
-- chat history;
-- current cooldown progress;
-- one-shot removals;
-- per-chat spin count;
-- per-chat adaptive level progress.
-
-If an exported preset points to a standalone Lorebook, the Lorebook contents themselves are not bundled. For fully portable character setups, prefer **Active character card Lorebook**.
+Therefore Content should be directly actionable and should never ask the model to choose another wheel result.
 
 ## Related docs
 

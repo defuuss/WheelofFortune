@@ -3,6 +3,8 @@
 export const EXTENDED_TRIGGER_GLOBAL_RE = /\[\[SPIN_WHEEL(?:\s+([^\]]+))?\]\]/gi;
 export const EXTENDED_TRIGGER_FIRST_RE = /\[\[SPIN_WHEEL(?:\s+([^\]]+))?\]\]/i;
 
+const WHEEL_KEYWORD_META_RE = /^wof:(wheel|once|id|weight|level|min|max|minlevel|maxlevel|cooldown|preset)(?:\s*=\s*(.+))?$/i;
+
 export function normalizeVisibilityValue(value) {
     const raw = String(value || '').toLowerCase().trim();
     const aliases = {
@@ -32,6 +34,63 @@ export function parseControlOptions(text) {
         if (['preset', 'wheel'].includes(key)) options.preset = String(value);
     }
     return options;
+}
+
+/**
+ * Parse Wheel of Fortune metadata stored in SillyTavern Primary Keywords.
+ *
+ * Recommended Character Book representation:
+ *   WheelOfFortune
+ *   wof:preset=Studio
+ *   wof:id=studio_category_01
+ *   wof:weight=5
+ *   wof:min=1
+ *   wof:max=5
+ *   wof:cooldown=2
+ *   wof:once
+ *
+ * This keeps the visible Name/Comment field human-readable while preserving a
+ * portable, editable representation in the standard Character Book keys array.
+ */
+export function parseWheelKeywordMetadata(keys = []) {
+    const values = Array.isArray(keys) ? keys : (keys == null ? [] : [keys]);
+    const tags = {};
+    const add = (name, value) => {
+        if (!tags[name]) tags[name] = [];
+        const normalized = value === true ? true : String(value).trim();
+        if (!tags[name].some(existing => String(existing).toLowerCase() === String(normalized).toLowerCase())) {
+            tags[name].push(normalized);
+        }
+    };
+
+    for (const raw of values) {
+        const token = String(raw ?? '').trim();
+        if (!token) continue;
+        const lower = token.toLowerCase();
+        if (lower === 'wheeloffortune' || lower === 'wof' || lower === 'wof:wheel') {
+            add('wheel', true);
+            continue;
+        }
+        const match = token.match(WHEEL_KEYWORD_META_RE);
+        if (!match) continue;
+        const name = match[1].toLowerCase();
+        const value = match[2] === undefined ? true : String(match[2]).trim();
+        add(name, value);
+    }
+    return tags;
+}
+
+export function characterKeywordsDeclarePreset(keys, presetName) {
+    const target = String(presetName ?? '').trim().replace(/^(?:"|')|(?:"|')$/g, '').toLowerCase();
+    if (!target) return false;
+    const tags = parseWheelKeywordMetadata(keys);
+    if (!tags.wheel?.length) return false;
+    return (tags.preset || [])
+        .filter(value => value !== true)
+        .flatMap(value => String(value).split(','))
+        .map(value => value.trim().replace(/^(?:"|')|(?:"|')$/g, '').toLowerCase())
+        .filter(Boolean)
+        .includes(target);
 }
 
 function escapeRegExp(value) {
