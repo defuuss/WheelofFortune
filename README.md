@@ -59,11 +59,23 @@ With v1.5's default settings, the technical trigger is removed from the stored/r
 - **v1.5.2 supports self-contained named presets.** If a card explicitly contains `[WHEEL] [preset=Studio] ...` and the character invokes `[[SPIN_WHEEL preset="Studio"]]`, the extension can create `Studio` automatically on first use. The user does not have to manually create that preset first.
 - Auto-creation only happens for an explicitly declared `[preset=Name]`; shared entries without a preset tag cannot create arbitrary preset names.
 
+### v1.5.3 floating wheel picker
+
+Clicking the floating **🎡 button on the right side** now opens a wheel selector instead of immediately opening only the currently active preset.
+
+The picker combines:
+
+- named presets already configured in the extension;
+- preset names discovered from the active character's embedded `[WHEEL] [preset=Name]` entries.
+
+Character-defined wheels are labelled **Character**. If a wheel exists only in the character card, it is also labelled **New** and is created automatically when you open it. If a configured preset and a Character Book preset use the same name, the picker uses the character's matching forfeits for that opening.
+
 ## Core features
 
 - 🎡 Large animated weighted wheel with long suspense spins.
 - 🎯 One deliberate spin per wheel opening; no post-result “Spin again”.
 - 🎛️ Multiple named wheel presets.
+- 🧭 Floating right-side wheel picker for configured + character-defined wheels.
 - 🔊 Browser-generated spin sounds and synchronized pointer ticks.
 - 🎭 Full, hidden-wheel, hidden-result and Blind visibility modes.
 - ⚖️ Weighted forfeits.
@@ -117,6 +129,25 @@ The anti-loop guard then blocks another automatic character-triggered wheel unti
 
 If automatic generation fails, the selected result remains queued for the next manual generation instead of being lost.
 
+## Floating wheel picker
+
+The floating right-side 🎡 button is intended for interactive selection. It does not immediately spin a wheel.
+
+When clicked, it discovers the current choices and shows them in a compact menu:
+
+```text
+🎡 Choose a wheel
+
+Studio        Character · New
+Secrets       Character · Preset
+Default       Active · Preset
+Dares         Preset
+```
+
+Selecting a row opens that wheel. You then press the center **SPIN** button once.
+
+For a Character Book wheel that does not yet exist as an extension preset, the picker creates it by cloning the current presentation/audio/timing configuration and sets its source to the active character's Character Book. Its progress, cooldowns and `[once]` removals remain isolated by preset + chat.
+
 ## Visibility modes
 
 | Mode | Wheel choices | Selected result |
@@ -141,7 +172,7 @@ Hidden results can still be sent privately to the character so it can act on the
 | `/wheel-level level=3` | Set current preset/chat level |
 | `/wheel-validate` | Validate current Lorebook source |
 
-Manual slash-command spins do **not** auto-create Character Book presets and do **not** automatically generate another character message. Self-contained preset creation is reserved for an intentional character trigger backed by an explicit `[preset=Name]` declaration in that character's embedded book.
+Manual slash-command spins do **not** auto-create Character Book presets and do **not** automatically generate another character message. Self-contained preset creation is reserved for an intentional character trigger backed by an explicit `[preset=Name]` declaration in that character's embedded book, or for choosing that explicitly declared wheel from the floating picker.
 
 ## Lorebook basics
 
@@ -171,7 +202,7 @@ A card containing the entry above may intentionally call:
 [[SPIN_WHEEL preset="Studio"]]
 ```
 
-and v1.5.2 can create the `Studio` preset automatically on first character-triggered use.
+or the user can select **Studio** directly from the floating 🎡 picker.
 
 A shared entry simply omits `[preset=...]`.
 
@@ -191,7 +222,7 @@ Each preset can have its own source/manual entries, appearance, visibility, timi
 
 Cooldowns, one-shot removals, level and completed-spin count are isolated by **preset + chat**.
 
-For a self-contained character card, explicitly route at least one embedded `[WHEEL]` entry to every preset name that the character may invoke. If that name does not yet exist, v1.5.2 creates it by cloning the current wheel's presentation/timing/audio configuration and using the active Character Book as its source.
+For a self-contained character card, explicitly route at least one embedded `[WHEEL]` entry to every preset name that the character may invoke. If that name does not yet exist, the extension can create it from a character trigger or from the floating picker by cloning the current wheel's presentation/timing/audio configuration and using the active Character Book as its source.
 
 v1.5 adds **Export active preset** and **Import preset** in settings. The export contains wheel configuration only; it deliberately excludes chat history, cooldown progress and one-shot state.
 
@@ -231,7 +262,7 @@ The active runtime is under `v13/`; the directory name is retained for backward 
 
 ## Current version
 
-**v1.5.2**
+**v1.5.3**
 
 ## License
 
