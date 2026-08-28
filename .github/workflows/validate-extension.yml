@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  syntax:
+  syntax-and-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,13 +15,20 @@ jobs:
       - name: Validate manifest JSON
         run: python -m json.tool manifest.json > /dev/null
 
-      - name: Check v1.3 JavaScript syntax
+      - name: Check JavaScript syntax
         run: |
           set -e
           for file in v13/*.js; do
             echo "Checking $file"
             node --check "$file"
           done
+          for file in tests/*.mjs; do
+            echo "Checking $file"
+            node --check "$file"
+          done
+
+      - name: Run unit tests
+        run: node --test tests/*.test.mjs
 
       - name: Check manifest targets
         run: |
