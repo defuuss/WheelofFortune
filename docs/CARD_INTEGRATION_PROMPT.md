@@ -1,9 +1,9 @@
-# AI prompt: integrate Wheel of Fortune v1.4 into a SillyTavern character card
+# AI prompt: integrate Wheel of Fortune v1.4.1 into a SillyTavern character card
 
-Use the prompt below with an AI that is creating or editing a SillyTavern character card. It teaches the AI how to add **character-triggered wheel behavior**, **named presets**, and valid **Character Lorebook / Character Book wheel entries**.
+Use the prompt below with an AI that is creating or editing a SillyTavern character card. It teaches the AI how to add **character-triggered wheel behavior**, **automatic post-spin continuation**, **named presets**, and valid **Character Lorebook / Character Book wheel entries**.
 
 ```text
-You are editing or creating a SillyTavern character card that will be used with the "Wheel of Fortune" extension v1.4 or newer.
+You are editing or creating a SillyTavern character card that will be used with the "Wheel of Fortune" extension v1.4.1 or newer.
 
 Your job has THREE parts:
 
@@ -35,29 +35,70 @@ mode=blind
 level=N
 seconds=N
 
+IMPORTANT TOOL-CALL FLOW:
+
+When the CHARACTER emits a valid wheel trigger, the current character message is considered the request to use the wheel.
+
+The extension then:
+1. detects the trigger after that character message finishes;
+2. opens and spins the visual wheel;
+3. selects exactly one eligible forfeit;
+4. injects the selected forfeit privately into model context;
+5. automatically requests a NEW character generation;
+6. the new character message continues the roleplay using the actual selected result.
+
+Therefore the character must NOT guess, pre-write, simulate, or invent the wheel result in the same message that contains the trigger.
+
+The trigger token should be the LAST meaningful content in the triggering character message. Do not continue roleplay text after the token. The post-wheel continuation will be generated automatically as a fresh character message.
+
+Correct pattern:
+
+Character message:
+"Fine. We'll let the wheel decide."
+[[SPIN_WHEEL preset="Secrets"]]
+
+--- wheel spins and selects a result ---
+
+Automatic next character message:
+The character reacts to and carries out the ACTUAL selected result.
+
+Incorrect pattern:
+
+"Fine. We'll let the wheel decide."
+[[SPIN_WHEEL preset="Secrets"]]
+"It landed on Reveal a secret, so here is my secret..."
+
+The character cannot know what the wheel selected until the extension returns the result.
+
 Behavior rules:
 
 1. Treat the wheel as an available in-world roleplay mechanic. The character may choose to invoke it when it naturally fits the scene, but it must not dominate normal conversation.
 
 2. Never output a wheel trigger token accidentally, as documentation, as an example to the user, or while merely talking about the wheel. Emit a token only when the character genuinely intends to spin.
 
-3. Use [[SPIN_WHEEL]] for the currently active/default preset.
+3. When intentionally invoking the wheel, place the trigger token at the end of the character's message and stop. Wait for the extension-driven continuation rather than writing what happens next in the same message.
 
-4. Use preset="Name" only when that preset actually exists. Never invent a preset name during roleplay.
+4. Never predict, choose, fake, or narrate the result before the actual wheel result is injected by the extension.
 
-5. Use mode=hidden-wheel when the character wants the user to see the final result but not the available wheel choices.
+5. Use [[SPIN_WHEEL]] for the currently active/default preset.
 
-6. Use mode=hidden-result when the choices may be visible but the selected result must remain secret from the user.
+6. Use preset="Name" only when that preset actually exists. Never invent a preset name during roleplay.
 
-7. Use mode=blind when both choices and selected result must remain secret.
+7. Use mode=hidden-wheel when the character wants the user to see the final result but not the available wheel choices.
 
-8. Use level=N only when deliberately requesting a specific intensity. Match established tone, pacing, boundaries, character development, and scenario context. Do not jump arbitrarily to a stronger level.
+8. Use mode=hidden-result when the choices may be visible but the selected result must remain secret from the user.
 
-9. When the extension injects a wheel result back into context, treat it as authoritative and incorporate it naturally.
+9. Use mode=blind when both choices and selected result must remain secret.
 
-10. If a result is secret, the character may know it but must not directly reveal the selected result, hidden choices, weights, stable IDs, preset-routing metadata, or internal level calculations.
+10. Use level=N only when deliberately requesting a specific intensity. Match established tone, pacing, boundaries, character development, and scenario context. Do not jump arbitrarily to a stronger level.
 
-11. Do not repeatedly spin just because the feature exists. Spins should feel deliberate and meaningful.
+11. When the extension injects a wheel result into the automatically generated follow-up, treat it as authoritative and continue the roleplay naturally from that result.
+
+12. If a result is secret, the character may know it but must not directly reveal the selected result, hidden choices, weights, stable IDs, preset-routing metadata, or internal level calculations. Instead, act on the secret result naturally.
+
+13. Do not immediately trigger another wheel from the automatic follow-up unless the scene genuinely requires a separate later spin. One deliberate trigger should normally produce one wheel result and one continuation.
+
+14. Do not repeatedly spin just because the feature exists. Spins should feel deliberate and meaningful.
 
 Add concise persistent instructions to an appropriate card field such as system prompt, post-history instructions, personality, character note, or scenario.
 
@@ -86,6 +127,8 @@ Cooldown example:
 One-shot example:
 
 [WHEEL] [id=plot_01] [weight=1] [level=5] [once] Major turning point
+
+The Content instruction should be written so the character can continue directly from it in the automatic post-spin generation. Do not write Content that asks the model to choose another wheel result or to output another trigger token.
 
 ============================================================
 PART C — NAMED PRESETS
@@ -209,6 +252,7 @@ Before finishing, check:
 - shared entries intentionally omit [preset=...];
 - every entry has a concise visible title and meaningful Content;
 - metadata is not placed in Content;
+- Lorebook Content is directly actionable in the automatic follow-up generation;
 - existing non-wheel Lorebook entries remain unchanged.
 
 Recommend running:
@@ -240,13 +284,13 @@ If you cannot edit the Lorebook directly, output a structured wheel plan contain
 - weight
 - persistence type: repeatable, cooldown, or once
 
-Also output the exact list of named presets the user should create in Wheel of Fortune v1.4.
+Also output the exact list of named presets the user should create in Wheel of Fortune v1.4.1.
 ```
 
 ## Compact card behavior note
 
 ```text
-Wheel of Fortune v1.4 integration: {{char}} may intentionally launch the external wheel when it naturally fits the roleplay. Use [[SPIN_WHEEL]] for the active wheel or [[SPIN_WHEEL preset="Exact Preset Name"]] for a named preset. Optional controls include mode=hidden-wheel, mode=hidden-result, mode=blind, level=N and seconds=N. Trigger tokens are control commands and must never be quoted or emitted accidentally. Only use preset names that actually exist. Treat injected wheel results as authoritative. Never reveal hidden results, hidden choices, metadata, probabilities, stable IDs, preset routing, or internal level calculations.
+Wheel of Fortune v1.4.1 integration: {{char}} may intentionally launch the external wheel when it naturally fits the roleplay. Use [[SPIN_WHEEL]] for the active wheel or [[SPIN_WHEEL preset="Exact Preset Name"]] for a named preset. Optional controls include mode=hidden-wheel, mode=hidden-result, mode=blind, level=N and seconds=N. A trigger is a tool-call boundary: when {{char}} intentionally triggers the wheel, put the trigger token at the END of the message and stop. Do not guess or narrate the result. The extension will spin, inject the actual selected forfeit, and automatically request a NEW {{char}} message that continues from the result. Trigger tokens must never be quoted or emitted accidentally. Only use preset names that actually exist. Treat injected results as authoritative. Never reveal hidden results, hidden choices, metadata, probabilities, stable IDs, preset routing, or internal level calculations.
 ```
 
 ## Minimal preset-routed Lorebook template
@@ -260,7 +304,7 @@ Wheel of Fortune v1.4 integration: {{char}} may intentionally launch the externa
 **Content**
 
 ```text
-Reveal a believable secret that fits established characterization and the current scene. Do not contradict known lore.
+Reveal a believable secret that fits established characterization and the current scene. Do not contradict known lore. Continue the roleplay naturally from this result.
 ```
 
 Shared entry usable by every preset using the Lorebook:
