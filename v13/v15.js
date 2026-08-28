@@ -60,7 +60,7 @@ export function refreshV15CharacterHint() {
         const names = getPresets().map(p => `"${p.name}"`).join(', ');
         c.setExtensionPrompt(
             TRIGGER_PROMPT_KEY,
-            `Wheel of Fortune tool v1.5 (active preset "${getActivePreset()?.name || 'Default'}", current level ${getActiveLevel()}): You may deliberately invoke the external visual wheel when it naturally fits the roleplay. Use [[SPIN_WHEEL]] or optional controls such as preset="Name", mode=hidden-wheel, mode=hidden-result, mode=blind, level=N and seconds=N. Available presets: ${names || 'none'}. IMPORTANT: a trigger is a tool-call boundary. Put the trigger at the END of your message and stop; never guess, simulate or narrate the result in that same message. The extension selects the real result and, when automatic continuation is enabled, requests a fresh character message that acts on it. Do not emit another wheel trigger in that automatic follow-up; a new user turn is required before another automatic character spin. Trigger tokens are implementation controls and must never be quoted or explained unless you genuinely intend to spin. Hidden results must remain secret. Never narrate wheel metadata, IDs, weights, preset routing or internal levels.`,
+            `Wheel of Fortune tool v1.5.2 (active preset "${getActivePreset()?.name || 'Default'}", current level ${getActiveLevel()}): You may deliberately invoke the external visual wheel when it naturally fits the roleplay. Use [[SPIN_WHEEL]] or optional controls such as preset="Name", mode=hidden-wheel, mode=hidden-result, mode=blind, level=N and seconds=N. Configured presets: ${names || 'none'}. A character card may also declare its own named preset with explicit [preset=Name] metadata on embedded [WHEEL] Character Book entries; if you intentionally request such a name, the extension can create that preset automatically on first use. Do not invent arbitrary preset names that are neither configured nor explicitly declared in your Character Book. IMPORTANT: a trigger is a tool-call boundary. Put the trigger at the END of your message and stop; never guess, simulate or narrate the result in that same message. The extension selects the real result and, when automatic continuation is enabled, requests a fresh character message that acts on it. Do not emit another wheel trigger in that automatic follow-up; a new user turn is required before another automatic character spin. Trigger tokens are implementation controls and must never be quoted or explained unless you genuinely intend to spin. Hidden results must remain secret. Never narrate wheel metadata, IDs, weights, preset routing or internal levels.`,
             extension_prompt_types.IN_PROMPT,
             0,
         );
@@ -98,7 +98,7 @@ function exportActivePreset() {
     const payload = {
         format: 'sillytavern-wheel-preset',
         schemaVersion: 1,
-        extensionVersion: '1.5.0',
+        extensionVersion: '1.5.2',
         exportedAt: new Date().toISOString(),
         preset: {
             name: active.name,
@@ -156,6 +156,7 @@ function injectV15Ui() {
         <label for="wof-auto-continue-delay">Delay after result reveal before continuing (seconds)</label>
         <input id="wof-auto-continue-delay" class="text_pole" type="number" min="0" max="3" step="0.1">
         <p class="wof-muted"><b>Hard loop guard:</b> after a character invokes the wheel, another automatic character wheel trigger is blocked until the user sends a new message. This guard is always enabled.</p>
+        <p class="wof-muted"><b>Self-contained character presets:</b> if an embedded Character Book explicitly contains <code>[WHEEL] [preset=Studio] ...</code>, a character-triggered <code>[[SPIN_WHEEL preset="Studio"]]</code> can create that named preset automatically on first use.</p>
 
         <hr>
         <h4>📦 Preset import / export</h4>
@@ -202,7 +203,7 @@ export async function renderV15Diagnostics(showToast = false) {
     }
     const cooling = Object.values(getCooldownMap()).filter(until => Number(until) > progress.spins).length;
     const rows = [
-        ['Extension', 'v1.5.0'],
+        ['Extension', 'v1.5.2'],
         ['Active preset', getActivePreset()?.name || 'None'],
         ['Source', sourceLabel()],
         ['Level / completed spins', `${getActiveLevel()} / ${progress.spins}`],

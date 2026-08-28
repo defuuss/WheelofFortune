@@ -26,6 +26,8 @@ Use one of:
 
 For Lorebooks, use **Only entries marked `[WHEEL]`**.
 
+Character-triggered spins can also auto-detect valid `[WHEEL]` entries in the active character's embedded Character Book.
+
 ### 3. Test the wheel
 
 ```text
@@ -49,6 +51,13 @@ With v1.5's default settings, the technical trigger is removed from the stored/r
 - 📦 **Preset import/export** — share named wheels as `.wheel.json` files without exporting chat state.
 - 🩺 **Diagnostics panel** — active preset, source, level, eligible entries, cooldowns, one-shot removals, trigger state and continuation status.
 - 🧪 **Real unit tests in GitHub Actions** for trigger parsing/cleanup, loop-guard behavior and preset import validation.
+
+### v1.5.1 / v1.5.2 Character Book improvements
+
+- Character cards are fully loaded before their embedded `character_book.entries` are read, fixing lazy/shallow-card loading problems.
+- Character-triggered spins automatically prefer matching embedded `[WHEEL]` entries when they exist.
+- **v1.5.2 supports self-contained named presets.** If a card explicitly contains `[WHEEL] [preset=Studio] ...` and the character invokes `[[SPIN_WHEEL preset="Studio"]]`, the extension can create `Studio` automatically on first use. The user does not have to manually create that preset first.
+- Auto-creation only happens for an explicitly declared `[preset=Name]`; shared entries without a preset tag cannot create arbitrary preset names.
 
 ## Core features
 
@@ -75,7 +84,7 @@ A character can use:
 ```text
 [[SPIN_WHEEL]]
 [[SPIN_WHEEL preset="Secrets"]]
-[[SPIN_WHEEL preset="Secrets" mode=hidden-wheel]]
+[[SPIN_WHEEL preset="Studio"]]
 [[SPIN_WHEEL preset="Consequences" mode=hidden-result]]
 [[SPIN_WHEEL preset="Chaos" mode=blind level=4 seconds=12]]
 ```
@@ -88,6 +97,10 @@ character message
 wheel trigger at end of message
       ↓
 trigger removed from chat
+      ↓
+embedded Character Book checked
+      ↓
+requested embedded preset auto-created if explicitly declared and missing
       ↓
 visual wheel spins once
       ↓
@@ -120,15 +133,15 @@ Hidden results can still be sent privately to the character so it can act on the
 | Command | Purpose |
 | --- | --- |
 | `/wheel` | Spin the active wheel |
-| `/wheel preset="Secrets"` | Spin a named preset |
+| `/wheel preset="Secrets"` | Spin an existing named preset |
 | `/wheel visibility=blind level=4 seconds=12` | One customized spin |
 | `/wheel-open` | Open without spinning |
-| `/wheel-preset preset="Secrets"` | Select a preset |
+| `/wheel-preset preset="Secrets"` | Select an existing preset |
 | `/wheel-presets` | List presets |
 | `/wheel-level level=3` | Set current preset/chat level |
 | `/wheel-validate` | Validate current Lorebook source |
 
-Manual slash-command spins do **not** automatically generate another character message. Automatic continuation is reserved for character-triggered spins.
+Manual slash-command spins do **not** auto-create Character Book presets and do **not** automatically generate another character message. Self-contained preset creation is reserved for an intentional character trigger backed by an explicit `[preset=Name]` declaration in that character's embedded book.
 
 ## Lorebook basics
 
@@ -149,8 +162,16 @@ Reveal a believable secret that fits established characterization and the curren
 Route an entry to a named preset:
 
 ```text
-[WHEEL] [preset=Secrets] [id=secret_02] [weight=2] [min=2] [max=5] Confession
+[WHEEL] [preset=Studio] [id=studio_01] [weight=2] [min=1] [max=5] Studio challenge
 ```
+
+A card containing the entry above may intentionally call:
+
+```text
+[[SPIN_WHEEL preset="Studio"]]
+```
+
+and v1.5.2 can create the `Studio` preset automatically on first character-triggered use.
 
 A shared entry simply omits `[preset=...]`.
 
@@ -170,11 +191,13 @@ Each preset can have its own source/manual entries, appearance, visibility, timi
 
 Cooldowns, one-shot removals, level and completed-spin count are isolated by **preset + chat**.
 
+For a self-contained character card, explicitly route at least one embedded `[WHEEL]` entry to every preset name that the character may invoke. If that name does not yet exist, v1.5.2 creates it by cloning the current wheel's presentation/timing/audio configuration and using the active Character Book as its source.
+
 v1.5 adds **Export active preset** and **Import preset** in settings. The export contains wheel configuration only; it deliberately excludes chat history, cooldown progress and one-shot state.
 
 ## Diagnostics
 
-The v1.5 diagnostics panel shows:
+The diagnostics panel shows:
 
 - extension version;
 - active preset and source;
@@ -208,7 +231,7 @@ The active runtime is under `v13/`; the directory name is retained for backward 
 
 ## Current version
 
-**v1.5.0**
+**v1.5.2**
 
 ## License
 
