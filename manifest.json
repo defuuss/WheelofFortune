@@ -6,7 +6,7 @@
   "js": "v13/loader.js",
   "css": "v13/style.css",
   "author": "defuuss",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "homePage": "https://github.com/defuuss/WheelofFortune",
   "auto_update": true
 }
